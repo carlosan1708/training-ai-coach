@@ -1,0 +1,34 @@
+# Node dependencies
+node_modules/
+web/node_modules/
+
+# Build outputs
+web/dist/
+sample/
+
+# Python
+functions/venv/
+functions/__pycache__/
+functions/**/__pycache__/
+functions/*.pyc
+functions/.python-version
+
+# Environment secrets
+web/.env.local
+*.local
+
+# Firebase
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+.firebaserc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+.claude/
+*.swp

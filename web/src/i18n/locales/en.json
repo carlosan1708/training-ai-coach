@@ -1,0 +1,289 @@
+{
+  "app": {
+    "name": "AI Coach"
+  },
+  "splash": {
+    "headline": "Your Personal Health Coach",
+    "sub": "AI-powered meal plans, exercise coaching, and health tracking — all in one place.",
+    "signIn": "Sign In",
+    "createAccount": "Create Account"
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "signOut": "Sign Out",
+    "forgotPassword": "Forgot Password?",
+    "resetPassword": "Reset Password",
+    "resetSent": "Password reset email sent. Check your inbox.",
+    "googleSignIn": "Continue with Google",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "errors": {
+      "invalidEmail": "Invalid email address.",
+      "weakPassword": "Password must be at least 6 characters.",
+      "emailInUse": "This email is already registered.",
+      "wrongPassword": "Incorrect email or password.",
+      "userNotFound": "No account found with this email.",
+      "passwordMismatch": "Passwords do not match.",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
+  "onboarding": {
+    "title": "Set Up Your Profile",
+    "step": "Step {{current}} of {{total}}",
+    "next": "Next",
+    "back": "Back",
+    "skip": "Skip",
+    "finish": "Finish",
+    "steps": {
+      "about": "About You",
+      "diet": "Diet",
+      "exercise": "Exercise",
+      "health": "Health",
+      "language": "Language & Tone"
+    },
+    "about": {
+      "name": "Full Name",
+      "age": "Age",
+      "sex": "Biological Sex",
+      "sexOptions": {
+        "male": "Male",
+        "female": "Female",
+        "other": "Other"
+      },
+      "height": "Height (cm)",
+      "currentWeight": "Current Weight (kg)",
+      "goalWeight": "Goal Weight (kg)"
+    },
+    "diet": {
+      "style": "Dietary Style",
+      "styleOptions": {
+        "omnivore": "Omnivore",
+        "vegetarian": "Vegetarian",
+        "vegan": "Vegan",
+        "other": "Other"
+      },
+      "intolerances": "Food Intolerances / Allergies",
+      "intolerancesHint": "e.g. gluten, lactose, nuts",
+      "dislikedFoods": "Disliked Foods",
+      "dislikedFoodsHint": "e.g. mushrooms, olives",
+      "cuisines": "Preferred Cuisines",
+      "cuisinesHint": "e.g. Mediterranean, Mexican",
+      "mealsPerDay": "Meals Per Day",
+      "caloricTarget": "Daily Caloric Target",
+      "caloricAuto": "Let AI calculate"
+    },
+    "exercise": {
+      "goal": "Training Goal",
+      "goalOptions": {
+        "fat_loss": "Fat Loss",
+        "muscle_gain": "Muscle Gain",
+        "endurance": "Endurance",
+        "general": "General Fitness"
+      },
+      "equipment": "Available Equipment",
+      "equipmentOptions": {
+        "none": "None",
+        "home": "Home Equipment",
+        "gym": "Full Gym"
+      },
+      "daysPerWeek": "Training Days Per Week",
+      "sessionLength": "Session Length (minutes)",
+      "restrictions": "Injuries or Movement Restrictions"
+    },
+    "health": {
+      "notes": "Health Notes",
+      "notesHint": "Any conditions or context the AI should know (optional)",
+      "units": "Preferred Units",
+      "unitsOptions": {
+        "metric": "Metric (kg / cm)",
+        "imperial": "Imperial (lb / in)"
+      }
+    },
+    "language": {
+      "uiLanguage": "App Language",
+      "responseLanguage": "AI Response Language",
+      "responseOptions": {
+        "en": "English",
+        "es": "Spanish",
+        "both": "Match my message language"
+      },
+      "tone": "Coaching Tone",
+      "toneOptions": {
+        "motivational": "Motivational",
+        "clinical": "Clinical",
+        "friendly": "Friendly"
+      }
+    }
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "log": "Daily Log",
+    "chat": "Chat",
+    "plans": "Meal Plans",
+    "progress": "Progress",
+    "settings": "Settings",
+    "admin": "Admin"
+  },
+  "dashboard": {
+    "welcome": "Welcome, {{name}}!",
+    "todayWeight": "Today's Weight",
+    "noWeight": "No weight logged today",
+    "logToday": "Log Today",
+    "openChat": "Ask AI Coach",
+    "adherence": "Weekly Adherence",
+    "noData": "No data yet — start by logging your first entry!"
+  },
+  "dailyLog": {
+    "title": "Daily Log",
+    "tabDaily": "Daily",
+    "tabMeasurements": "Measurements",
+    "tabExercises": "Exercises",
+    "date": "Date",
+    "weight": "Weight (kg)",
+    "bodyFat": "Body Fat %",
+    "energy": "Energy Level",
+    "energyLabels": {
+      "1": "Exhausted",
+      "2": "Tired",
+      "3": "Okay",
+      "4": "Good",
+      "5": "Great"
+    },
+    "notes": "Notes",
+    "notesHint": "How was your day? Any meals skipped, soreness, etc.",
+    "save": "Save Log",
+    "saved": "Log saved!"
+  },
+  "measurements": {
+    "hint": "Two complementary types — both feed the AI coach",
+    "reportTitle": "Body Composition Analyzer Report",
+    "reportHint": "Upload a screenshot from Fitdays, InBody, Tanita, Withings, or any BIA scale app — or a PDF from ISAK/Holway anthropometric assessment. AI extracts all values automatically.",
+    "uploadReport": "Upload Photo or PDF",
+    "changeFile": "Change File",
+    "extractData": "Extract with AI",
+    "analyzing": "Analyzing...",
+    "reportNotRecognized": "This doesn't look like a body composition report.",
+    "analyzeError": "Could not analyze the image. Please try again.",
+    "quotaError": "AI quota exceeded. Enable billing on your Gemini API project, or try again tomorrow when the daily limit resets.",
+    "weight": "Weight",
+    "bodyFatPct": "Body Fat %",
+    "bodyFatKg": "Fat Mass",
+    "musclePct": "Muscle %",
+    "muscleKg": "Muscle Mass",
+    "boneMass": "Bone Mass",
+    "bodyWater": "Body Water %",
+    "protein": "Protein",
+    "bmi": "BMI",
+    "visceralFat": "Visceral Fat",
+    "bodyScore": "Body Score",
+    "metabolicAge": "Metabolic Age",
+    "segmentalFat": "Segmental Fat",
+    "segmentalMuscle": "Segmental Muscle",
+    "targetWeight": "Target",
+    "fatToLose": "Fat to Lose",
+    "muscleToGain": "Muscle to Gain",
+    "pdfReady": "PDF loaded — click Extract to analyze",
+    "viewReport": "View Report",
+    "height": "Height",
+    "method": "Method",
+    "muscleComp": "Muscle %",
+    "muscleKgComp": "Muscle Mass",
+    "bonePct": "Bone %",
+    "residualPct": "Residual %",
+    "residualKg": "Residual Mass",
+    "leanMass": "Lean Mass",
+    "sum6": "Sum 6 Skinfolds",
+    "sum8": "Sum 8 Skinfolds",
+    "skinfolds": "Skinfold Measurements",
+    "sf_triceps": "Triceps",
+    "sf_subscapular": "Subscapular",
+    "sf_pectoral": "Pectoral",
+    "sf_iliac_crest": "Iliac Crest",
+    "sf_supraspinale": "Supraspinale",
+    "sf_abdominal": "Abdominal",
+    "sf_medial_thigh": "Medial Thigh",
+    "sf_medial_calf": "Medial Calf",
+    "sf_axillary": "Axillary",
+    "girths": "Girths",
+    "girth_relaxed_arm": "Relaxed Arm",
+    "girth_tensed_arm": "Tensed Arm",
+    "girth_waist": "Waist",
+    "girth_hip": "Hip",
+    "girth_calf": "Calf",
+    "somatotype": "Somatotype (Heath & Carter)",
+    "tapeTitle": "Tape Measurements",
+    "tapeHint": "Manual circumference measurements taken with a tape measure.",
+    "waist": "Waist",
+    "chest": "Chest",
+    "hips": "Hips",
+    "arms": "Arms",
+    "thighs": "Thighs",
+    "bodyFatManual": "Body Fat % (manual)",
+    "bodyFat": "Body Fat %",
+    "save": "Save Measurements",
+    "saved": "Measurements saved!",
+    "reportsHistory": "Report History",
+    "viewData": "View Extracted Data",
+    "deleteConfirm": "Delete this report?",
+    "unknownDate": "Unknown date"
+  },
+  "exerciseLog": {
+    "photoTitle": "AI Photo Analysis",
+    "photoHint": "Take a photo of your workout notes or gym screen — AI will fill in the exercises.",
+    "takePhoto": "Take / Upload Photo",
+    "changePhoto": "Change Photo",
+    "analyzePhoto": "Analyze with AI",
+    "analyzing": "Analyzing...",
+    "noDataFound": "No exercise data detected in the photo.",
+    "analyzeError": "Could not analyze photo. Please try again.",
+    "exercises": "Exercises",
+    "exercise": "Exercise",
+    "sets": "Sets",
+    "reps": "Reps",
+    "weightKg": "Weight (kg)",
+    "notes": "Notes",
+    "notesHint": "e.g. superset with pull-ups",
+    "remove": "Remove",
+    "addExercise": "Add Exercise",
+    "save": "Save Exercises",
+    "saved": "Exercise log saved!"
+  },
+  "mealPlans": {
+    "title": "Meal Plans",
+    "upload": "Upload Meal Plan",
+    "uploadHint": "Supported formats: PDF, DOC, DOCX, JPG, PNG",
+    "uploading": "Uploading...",
+    "extracting": "Extracting content with AI...",
+    "uploadError": "Upload failed. Please try again.",
+    "noPlans": "No meal plans uploaded yet.",
+    "active": "Active",
+    "setActive": "Set as Active",
+    "preview": "Preview file",
+    "contentExtracted": "Nutrition data extracted by AI — ready for analysis",
+    "viewExtracted": "View extracted nutrition data",
+    "notes": "Notes",
+    "supplements": "Supplements",
+    "deleteConfirm": "Delete this meal plan?",
+    "deleteError": "Could not delete plan. Please try again.",
+    "extractNow": "Extract AI Summary"
+  },
+  "chat": {
+    "title": "AI Coach",
+    "placeholder": "Ask your coach anything...",
+    "send": "Send",
+    "thinking": "Thinking...",
+    "errorSending": "Failed to send message. Please try again."
+  },
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "optional": "Optional",
+    "error": "Something went wrong."
+  }
+}

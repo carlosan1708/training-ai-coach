@@ -1,0 +1,38 @@
+{
+  "hosting": {
+    "public": "web/dist",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
+  "functions": {
+    "source": "functions",
+    "codebase": "default",
+    "runtime": "python312",
+    "ignore": [
+      "venv",
+      "__pycache__",
+      ".git",
+      "firebase-debug.log",
+      "*.local"
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": [
+    {
+      "bucket": "ai-training-coach-6880b.firebasestorage.app",
+      "rules": "storage.rules"
+    }
+  ]
+}

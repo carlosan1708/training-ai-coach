@@ -1,0 +1,289 @@
+{
+  "app": {
+    "name": "AI Coach"
+  },
+  "splash": {
+    "headline": "Tu Entrenador de Salud Personal",
+    "sub": "Planes de comida con IA, asesoramiento de ejercicio y seguimiento de salud — todo en un lugar.",
+    "signIn": "Iniciar Sesión",
+    "createAccount": "Crear Cuenta"
+  },
+  "auth": {
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "confirmPassword": "Confirmar Contraseña",
+    "signIn": "Iniciar Sesión",
+    "signUp": "Registrarse",
+    "signOut": "Cerrar Sesión",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "resetPassword": "Restablecer Contraseña",
+    "resetSent": "Correo de restablecimiento enviado. Revisa tu bandeja.",
+    "googleSignIn": "Continuar con Google",
+    "noAccount": "¿No tienes cuenta?",
+    "hasAccount": "¿Ya tienes cuenta?",
+    "errors": {
+      "invalidEmail": "Correo electrónico inválido.",
+      "weakPassword": "La contraseña debe tener al menos 6 caracteres.",
+      "emailInUse": "Este correo ya está registrado.",
+      "wrongPassword": "Correo o contraseña incorrectos.",
+      "userNotFound": "No se encontró cuenta con este correo.",
+      "passwordMismatch": "Las contraseñas no coinciden.",
+      "generic": "Algo salió mal. Por favor intenta de nuevo."
+    }
+  },
+  "onboarding": {
+    "title": "Configura Tu Perfil",
+    "step": "Paso {{current}} de {{total}}",
+    "next": "Siguiente",
+    "back": "Atrás",
+    "skip": "Omitir",
+    "finish": "Finalizar",
+    "steps": {
+      "about": "Sobre Ti",
+      "diet": "Dieta",
+      "exercise": "Ejercicio",
+      "health": "Salud",
+      "language": "Idioma y Tono"
+    },
+    "about": {
+      "name": "Nombre Completo",
+      "age": "Edad",
+      "sex": "Sexo Biológico",
+      "sexOptions": {
+        "male": "Masculino",
+        "female": "Femenino",
+        "other": "Otro"
+      },
+      "height": "Altura (cm)",
+      "currentWeight": "Peso Actual (kg)",
+      "goalWeight": "Peso Objetivo (kg)"
+    },
+    "diet": {
+      "style": "Estilo Alimentario",
+      "styleOptions": {
+        "omnivore": "Omnívoro",
+        "vegetarian": "Vegetariano",
+        "vegan": "Vegano",
+        "other": "Otro"
+      },
+      "intolerances": "Intolerancias / Alergias",
+      "intolerancesHint": "p.ej. gluten, lactosa, nueces",
+      "dislikedFoods": "Alimentos que No Te Gustan",
+      "dislikedFoodsHint": "p.ej. champiñones, aceitunas",
+      "cuisines": "Cocinas Preferidas",
+      "cuisinesHint": "p.ej. Mediterránea, Mexicana",
+      "mealsPerDay": "Comidas por Día",
+      "caloricTarget": "Objetivo Calórico Diario",
+      "caloricAuto": "Que la IA calcule"
+    },
+    "exercise": {
+      "goal": "Objetivo de Entrenamiento",
+      "goalOptions": {
+        "fat_loss": "Pérdida de Grasa",
+        "muscle_gain": "Ganancia Muscular",
+        "endurance": "Resistencia",
+        "general": "Fitness General"
+      },
+      "equipment": "Equipamiento Disponible",
+      "equipmentOptions": {
+        "none": "Ninguno",
+        "home": "Equipo en Casa",
+        "gym": "Gimnasio Completo"
+      },
+      "daysPerWeek": "Días de Entrenamiento por Semana",
+      "sessionLength": "Duración de Sesión (minutos)",
+      "restrictions": "Lesiones o Restricciones de Movimiento"
+    },
+    "health": {
+      "notes": "Notas de Salud",
+      "notesHint": "Condiciones o contexto que la IA debería saber (opcional)",
+      "units": "Unidades Preferidas",
+      "unitsOptions": {
+        "metric": "Métrico (kg / cm)",
+        "imperial": "Imperial (lb / in)"
+      }
+    },
+    "language": {
+      "uiLanguage": "Idioma de la App",
+      "responseLanguage": "Idioma de Respuesta IA",
+      "responseOptions": {
+        "en": "Inglés",
+        "es": "Español",
+        "both": "Igual que mi mensaje"
+      },
+      "tone": "Tono de Coaching",
+      "toneOptions": {
+        "motivational": "Motivacional",
+        "clinical": "Clínico",
+        "friendly": "Amigable"
+      }
+    }
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "log": "Registro Diario",
+    "chat": "Chat",
+    "plans": "Planes de Comida",
+    "progress": "Progreso",
+    "settings": "Configuración",
+    "admin": "Admin"
+  },
+  "dashboard": {
+    "welcome": "¡Bienvenido, {{name}}!",
+    "todayWeight": "Peso de Hoy",
+    "noWeight": "Sin peso registrado hoy",
+    "logToday": "Registrar Hoy",
+    "openChat": "Preguntar al Coach IA",
+    "adherence": "Adherencia Semanal",
+    "noData": "¡Sin datos aún — comienza registrando tu primera entrada!"
+  },
+  "dailyLog": {
+    "title": "Registro Diario",
+    "tabDaily": "Diario",
+    "tabMeasurements": "Medidas",
+    "tabExercises": "Ejercicios",
+    "date": "Fecha",
+    "weight": "Peso (kg)",
+    "bodyFat": "% Grasa Corporal",
+    "energy": "Nivel de Energía",
+    "energyLabels": {
+      "1": "Agotado",
+      "2": "Cansado",
+      "3": "Regular",
+      "4": "Bien",
+      "5": "Excelente"
+    },
+    "notes": "Notas",
+    "notesHint": "¿Cómo fue tu día? ¿Alguna comida omitida, dolor muscular, etc.?",
+    "save": "Guardar Registro",
+    "saved": "¡Registro guardado!"
+  },
+  "measurements": {
+    "hint": "Dos tipos complementarios — ambos alimentan al coach de IA",
+    "reportTitle": "Reporte de Analizador de Composición Corporal",
+    "reportHint": "Sube una captura de Fitdays, InBody, Tanita, Withings u otra báscula BIA — o un PDF de evaluación antropométrica ISAK/Holway. La IA extrae todos los valores automáticamente.",
+    "uploadReport": "Subir Foto o PDF",
+    "changeFile": "Cambiar Archivo",
+    "extractData": "Extraer con IA",
+    "analyzing": "Analizando...",
+    "reportNotRecognized": "Esto no parece un reporte de composición corporal.",
+    "analyzeError": "No se pudo analizar la imagen. Inténtalo de nuevo.",
+    "quotaError": "Se agotó la cuota de IA. Activa la facturación en tu proyecto de Gemini API, o intenta mañana cuando se reinicie el límite diario.",
+    "weight": "Peso",
+    "bodyFatPct": "% Grasa Corporal",
+    "bodyFatKg": "Masa Grasa",
+    "musclePct": "% Músculo",
+    "muscleKg": "Masa Muscular",
+    "boneMass": "Masa Ósea",
+    "bodyWater": "% Agua Corporal",
+    "protein": "Proteína",
+    "bmi": "IMC",
+    "visceralFat": "Grasa Visceral",
+    "bodyScore": "Puntuación Corporal",
+    "metabolicAge": "Edad Metabólica",
+    "segmentalFat": "Grasa Segmental",
+    "segmentalMuscle": "Músculo Segmental",
+    "targetWeight": "Meta",
+    "fatToLose": "Grasa a Perder",
+    "muscleToGain": "Músculo a Ganar",
+    "pdfReady": "PDF cargado — haz clic en Extraer para analizar",
+    "viewReport": "Ver Reporte",
+    "height": "Talla",
+    "method": "Método",
+    "muscleComp": "Músculo %",
+    "muscleKgComp": "Masa Muscular",
+    "bonePct": "Óseo %",
+    "residualPct": "Residual %",
+    "residualKg": "Masa Residual",
+    "leanMass": "Masa Magra",
+    "sum6": "Suma 6 Pliegues",
+    "sum8": "Suma 8 Pliegues",
+    "skinfolds": "Pliegues Cutáneos",
+    "sf_triceps": "Tríceps",
+    "sf_subscapular": "Subescapular",
+    "sf_pectoral": "Pectoral",
+    "sf_iliac_crest": "Cresta Ilíaca",
+    "sf_supraspinale": "Supraespinal",
+    "sf_abdominal": "Abdominal",
+    "sf_medial_thigh": "Muslo Medial",
+    "sf_medial_calf": "Pantorrilla Medial",
+    "sf_axillary": "Axilar",
+    "girths": "Perímetros",
+    "girth_relaxed_arm": "Brazo Relajado",
+    "girth_tensed_arm": "Brazo en Tensión",
+    "girth_waist": "Cintura",
+    "girth_hip": "Cadera",
+    "girth_calf": "Pantorrilla",
+    "somatotype": "Somatotipo (Heath & Carter)",
+    "tapeTitle": "Medidas con Cinta",
+    "tapeHint": "Medidas de circunferencia tomadas manualmente con cinta métrica.",
+    "waist": "Cintura",
+    "chest": "Pecho",
+    "hips": "Caderas",
+    "arms": "Brazos",
+    "thighs": "Muslos",
+    "bodyFatManual": "% Grasa Corporal (manual)",
+    "bodyFat": "% Grasa Corporal",
+    "save": "Guardar Medidas",
+    "saved": "¡Medidas guardadas!",
+    "reportsHistory": "Historial de Reportes",
+    "viewData": "Ver Datos Extraídos",
+    "deleteConfirm": "¿Eliminar este reporte?",
+    "unknownDate": "Fecha desconocida"
+  },
+  "exerciseLog": {
+    "photoTitle": "Análisis de Foto con IA",
+    "photoHint": "Toma una foto de tus notas de entrenamiento — la IA completará los ejercicios.",
+    "takePhoto": "Tomar / Subir Foto",
+    "changePhoto": "Cambiar Foto",
+    "analyzePhoto": "Analizar con IA",
+    "analyzing": "Analizando...",
+    "noDataFound": "No se detectaron ejercicios en la foto.",
+    "analyzeError": "No se pudo analizar la foto. Inténtalo de nuevo.",
+    "exercises": "Ejercicios",
+    "exercise": "Ejercicio",
+    "sets": "Series",
+    "reps": "Reps",
+    "weightKg": "Peso (kg)",
+    "notes": "Notas",
+    "notesHint": "p.ej. superserie con dominadas",
+    "remove": "Eliminar",
+    "addExercise": "Agregar Ejercicio",
+    "save": "Guardar Ejercicios",
+    "saved": "¡Ejercicios guardados!"
+  },
+  "mealPlans": {
+    "title": "Planes de Comida",
+    "upload": "Subir Plan de Comida",
+    "uploadHint": "Formatos soportados: PDF, DOC, DOCX, JPG, PNG",
+    "uploading": "Subiendo...",
+    "extracting": "Extrayendo contenido con IA...",
+    "uploadError": "Error al subir. Inténtalo de nuevo.",
+    "noPlans": "Aún no se han subido planes de comida.",
+    "active": "Activo",
+    "setActive": "Establecer como Activo",
+    "preview": "Previsualizar archivo",
+    "contentExtracted": "Datos nutricionales extraídos por IA — listos para análisis",
+    "viewExtracted": "Ver datos nutricionales extraídos",
+    "notes": "Notas",
+    "supplements": "Suplementos",
+    "deleteConfirm": "¿Eliminar este plan de comida?",
+    "deleteError": "No se pudo eliminar el plan. Inténtalo de nuevo.",
+    "extractNow": "Extraer Resumen IA"
+  },
+  "chat": {
+    "title": "Coach IA",
+    "placeholder": "Pregunta a tu coach lo que quieras...",
+    "send": "Enviar",
+    "thinking": "Pensando...",
+    "errorSending": "No se pudo enviar el mensaje. Inténtalo de nuevo."
+  },
+  "common": {
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "optional": "Opcional",
+    "error": "Algo salió mal."
+  }
+}

@@ -1,0 +1,31 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Admin is identified by hardcoded UID — no separate collection needed
+    function isAdmin() {
+      return isSignedIn() && request.auth.uid == 'FoGUChOQDfdITbqO5h4Uqjfy9PL2';
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // ── User data ─────────────────────────────────────────────────────────
+    match /users/{uid}/{document=**} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // ── Approval status ───────────────────────────────────────────────────
+    match /user_status/{uid} {
+      allow read:   if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid);
+      allow update: if isAdmin();
+    }
+  }
+}
