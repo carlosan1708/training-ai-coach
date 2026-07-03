@@ -35,12 +35,11 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip as ChartTooltip,
   ResponsiveContainer, CartesianGrid,
 } from 'recharts';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '../firebase/config';
 import { useAuthStore } from '../store/authStore';
 import {
   getRoutine, updateRoutine, getRoutineSessions, addWorkoutSession,
 } from '../firebase/firestore';
+import { planWorkoutSessionFn as planSessionFn } from '../firebase/callables';
 import ExerciseGif from '../components/ExerciseGif';
 import ExercisePickerDialog from '../components/routines/ExercisePickerDialog';
 import ExerciseConfigDialog from '../components/routines/ExerciseConfigDialog';
@@ -48,11 +47,6 @@ import { findSessionExercise, summarizeSets, topSetWeight, exerciseVolume } from
 import type {
   Routine, RoutineExercise, SessionExercise, SessionPlan, WorkoutSession,
 } from '../types/routine';
-
-const planSessionFn = httpsCallable<
-  { routine: { name: string; exercises: RoutineExercise[] }; recentSessions: unknown[] },
-  { plan: SessionPlan }
->(functions, 'plan_workout_session');
 
 const today = () => new Date().toISOString().split('T')[0];
 

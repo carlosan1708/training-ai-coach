@@ -6,7 +6,9 @@
     "headline": "Your Personal Health Coach",
     "sub": "AI-powered meal plans, exercise coaching, and health tracking — all in one place.",
     "signIn": "Sign In",
-    "createAccount": "Create Account"
+    "createAccount": "Create Account",
+    "tryDemo": "Try the demo",
+    "demoHint": "No account needed — explore with sample data"
   },
   "auth": {
     "email": "Email",
@@ -331,5 +333,9 @@
     "target": "Target",
     "lastTime": "Last time",
     "addSet": "Add set"
+  },
+  "demo": {
+    "banner": "Demo mode — sample data stored on this device only. AI replies are simulated.",
+    "exit": "Exit demo"
   }
 }

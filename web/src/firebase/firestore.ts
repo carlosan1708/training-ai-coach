@@ -17,45 +17,62 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './config';
+import { isDemoMode } from '../demo';
+import * as demoDb from '../demo/db';
 import type { UserProfile } from '../types/user';
 import type { DailyLog } from '../types/log';
 import type { ChatSession, Message } from '../types/chat';
 import type { Routine, WorkoutSession } from '../types/routine';
 
+const noop = () => {};
+
 // Profile
 export const getProfile = async (uid: string): Promise<UserProfile | null> => {
+  if (isDemoMode()) return demoDb.getProfile();
   const snap = await getDoc(doc(db, 'users', uid, 'profile', 'data'));
   return snap.exists() ? (snap.data() as UserProfile) : null;
 };
 
-export const setProfile = (uid: string, data: Partial<UserProfile>) =>
-  setDoc(doc(db, 'users', uid, 'profile', 'data'), data, { merge: true });
+export const setProfile = async (uid: string, data: Partial<UserProfile>) => {
+  if (isDemoMode()) return demoDb.setProfile(data);
+  return setDoc(doc(db, 'users', uid, 'profile', 'data'), data, { merge: true });
+};
 
 export const subscribeToProfile = (
   uid: string,
   callback: (profile: UserProfile | null) => void
-): Unsubscribe =>
-  onSnapshot(doc(db, 'users', uid, 'profile', 'data'), (snap) =>
+): Unsubscribe => {
+  if (isDemoMode()) {
+    callback(demoDb.getProfile());
+    return noop;
+  }
+  return onSnapshot(doc(db, 'users', uid, 'profile', 'data'), (snap) =>
     callback(snap.exists() ? (snap.data() as UserProfile) : null)
   );
+};
 
 // Daily Logs
 export const getDailyLog = async (
   uid: string,
   date: string
 ): Promise<DailyLog | null> => {
+  if (isDemoMode()) return demoDb.getDailyLog(date);
   const snap = await getDoc(doc(db, 'users', uid, 'logs', date));
   return snap.exists() ? (snap.data() as DailyLog) : null;
 };
 
-export const upsertDailyLog = (
+export const upsertDailyLog = async (
   uid: string,
   date: string,
   data: Partial<DailyLog>
-) => setDoc(doc(db, 'users', uid, 'logs', date), data, { merge: true });
+) => {
+  if (isDemoMode()) return demoDb.upsertDailyLog(date, data);
+  return setDoc(doc(db, 'users', uid, 'logs', date), data, { merge: true });
+};
 
 // Chat Sessions
 export const createChatSession = async (uid: string): Promise<string> => {
+  if (isDemoMode()) return 'demo-chat-session';
   const ref = await addDoc(collection(db, 'users', uid, 'chat_sessions'), {
     messages: [],
     created_at: serverTimestamp(),
@@ -74,15 +91,17 @@ export const getChatSession = async (
   return snap.exists() ? (snap.data() as ChatSession) : null;
 };
 
-export const appendMessage = (
+export const appendMessage = async (
   uid: string,
   sessionId: string,
   message: Message
-) =>
-  updateDoc(doc(db, 'users', uid, 'chat_sessions', sessionId), {
+) => {
+  if (isDemoMode()) return; // demo chat history lives only in the UI store
+  return updateDoc(doc(db, 'users', uid, 'chat_sessions', sessionId), {
     messages: arrayUnion(message),
     last_active: serverTimestamp(),
   });
+};
 
 // ─── Body Composition Reports ─────────────────────────────────────────────────
 
@@ -99,6 +118,7 @@ export interface BodyCompositionReportDoc {
 }
 
 export const getBodyCompositionReports = async (uid: string): Promise<BodyCompositionReportDoc[]> => {
+  if (isDemoMode()) return demoDb.getReports();
   const snap = await getDocs(
     query(collection(db, 'users', uid, 'body_composition_reports'), orderBy('created_at', 'desc'))
   );
@@ -109,6 +129,7 @@ export const addBodyCompositionReport = async (
   uid: string,
   data: Omit<BodyCompositionReportDoc, 'id' | 'created_at'>
 ): Promise<string> => {
+  if (isDemoMode()) return demoDb.addReport(data);
   const ref = await addDoc(collection(db, 'users', uid, 'body_composition_reports'), {
     ...data,
     created_at: serverTimestamp(),
@@ -116,8 +137,10 @@ export const addBodyCompositionReport = async (
   return ref.id;
 };
 
-export const deleteBodyCompositionReport = (uid: string, docId: string) =>
-  doc(db, 'users', uid, 'body_composition_reports', docId);
+export const deleteBodyCompositionReport = async (uid: string, docId: string) => {
+  if (isDemoMode()) return demoDb.deleteReport(docId);
+  return deleteDoc(doc(db, 'users', uid, 'body_composition_reports', docId));
+};
 
 // ─── Meal Plans ───────────────────────────────────────────────────────────────
 
@@ -134,6 +157,7 @@ export interface MealPlanDoc {
 }
 
 export const getMealPlans = async (uid: string): Promise<MealPlanDoc[]> => {
+  if (isDemoMode()) return demoDb.getMealPlans();
   const snap = await getDocs(
     query(collection(db, 'users', uid, 'meal_plans'), orderBy('created_at', 'desc'))
   );
@@ -144,6 +168,7 @@ export const addMealPlan = async (
   uid: string,
   data: Omit<MealPlanDoc, 'id' | 'created_at'>
 ): Promise<string> => {
+  if (isDemoMode()) return demoDb.addMealPlan(data);
   const ref = await addDoc(collection(db, 'users', uid, 'meal_plans'), {
     ...data,
     created_at: serverTimestamp(),
@@ -151,13 +176,17 @@ export const addMealPlan = async (
   return ref.id;
 };
 
-export const updateMealPlan = (
+export const updateMealPlan = async (
   uid: string,
   planId: string,
   data: Partial<Omit<MealPlanDoc, 'id'>>
-) => setDoc(doc(db, 'users', uid, 'meal_plans', planId), data, { merge: true });
+) => {
+  if (isDemoMode()) return demoDb.updateMealPlan(planId, data);
+  return setDoc(doc(db, 'users', uid, 'meal_plans', planId), data, { merge: true });
+};
 
 export const setActiveMealPlan = async (uid: string, planId: string) => {
+  if (isDemoMode()) return demoDb.setActiveMealPlan(planId);
   // Deactivate all plans then activate selected
   const plans = await getMealPlans(uid);
   const batch = plans.map((p) =>
@@ -170,12 +199,15 @@ export const setActiveMealPlan = async (uid: string, planId: string) => {
   await Promise.all(batch);
 };
 
-export const deleteMealPlan = (uid: string, planId: string) =>
-  doc(db, 'users', uid, 'meal_plans', planId);
+export const deleteMealPlan = async (uid: string, planId: string) => {
+  if (isDemoMode()) return demoDb.deleteMealPlan(planId);
+  return deleteDoc(doc(db, 'users', uid, 'meal_plans', planId));
+};
 
 // ─── Workout Routines ─────────────────────────────────────────────────────────
 
 export const getRoutines = async (uid: string): Promise<Routine[]> => {
+  if (isDemoMode()) return demoDb.getRoutines();
   const snap = await getDocs(
     query(collection(db, 'users', uid, 'routines'), orderBy('created_at', 'desc'))
   );
@@ -183,6 +215,7 @@ export const getRoutines = async (uid: string): Promise<Routine[]> => {
 };
 
 export const getRoutine = async (uid: string, routineId: string): Promise<Routine | null> => {
+  if (isDemoMode()) return demoDb.getRoutine(routineId);
   const snap = await getDoc(doc(db, 'users', uid, 'routines', routineId));
   return snap.exists() ? ({ id: snap.id, ...snap.data() } as Routine) : null;
 };
@@ -191,6 +224,7 @@ export const addRoutine = async (
   uid: string,
   data: Omit<Routine, 'id' | 'created_at' | 'updated_at'>
 ): Promise<string> => {
+  if (isDemoMode()) return demoDb.addRoutine(data);
   const ref = await addDoc(collection(db, 'users', uid, 'routines'), {
     ...data,
     created_at: serverTimestamp(),
@@ -199,19 +233,23 @@ export const addRoutine = async (
   return ref.id;
 };
 
-export const updateRoutine = (
+export const updateRoutine = async (
   uid: string,
   routineId: string,
   data: Partial<Omit<Routine, 'id'>>
-) =>
-  setDoc(
+) => {
+  if (isDemoMode()) return demoDb.updateRoutine(routineId, data);
+  return setDoc(
     doc(db, 'users', uid, 'routines', routineId),
     { ...data, updated_at: serverTimestamp() },
     { merge: true }
   );
+};
 
-export const deleteRoutine = (uid: string, routineId: string) =>
-  deleteDoc(doc(db, 'users', uid, 'routines', routineId));
+export const deleteRoutine = async (uid: string, routineId: string) => {
+  if (isDemoMode()) return demoDb.deleteRoutine(routineId);
+  return deleteDoc(doc(db, 'users', uid, 'routines', routineId));
+};
 
 // ─── Workout Sessions ─────────────────────────────────────────────────────────
 
@@ -219,6 +257,7 @@ export const getWorkoutSession = async (
   uid: string,
   sessionId: string
 ): Promise<WorkoutSession | null> => {
+  if (isDemoMode()) return demoDb.getWorkoutSession(sessionId);
   const snap = await getDoc(doc(db, 'users', uid, 'workout_sessions', sessionId));
   return snap.exists() ? ({ id: snap.id, ...snap.data() } as WorkoutSession) : null;
 };
@@ -229,6 +268,7 @@ export const getRoutineSessions = async (
   routineId: string,
   max = 30
 ): Promise<WorkoutSession[]> => {
+  if (isDemoMode()) return demoDb.getRoutineSessions(routineId, max);
   const snap = await getDocs(
     query(
       collection(db, 'users', uid, 'workout_sessions'),
@@ -244,6 +284,7 @@ export const addWorkoutSession = async (
   uid: string,
   data: Omit<WorkoutSession, 'id' | 'started_at'>
 ): Promise<string> => {
+  if (isDemoMode()) return demoDb.addWorkoutSession(data);
   const ref = await addDoc(collection(db, 'users', uid, 'workout_sessions'), {
     ...data,
     started_at: serverTimestamp(),
@@ -251,14 +292,19 @@ export const addWorkoutSession = async (
   return ref.id;
 };
 
-export const updateWorkoutSession = (
+export const updateWorkoutSession = async (
   uid: string,
   sessionId: string,
   data: Partial<Omit<WorkoutSession, 'id'>>
-) => setDoc(doc(db, 'users', uid, 'workout_sessions', sessionId), data, { merge: true });
+) => {
+  if (isDemoMode()) return demoDb.updateWorkoutSession(sessionId, data);
+  return setDoc(doc(db, 'users', uid, 'workout_sessions', sessionId), data, { merge: true });
+};
 
-export const deleteWorkoutSession = (uid: string, sessionId: string) =>
-  deleteDoc(doc(db, 'users', uid, 'workout_sessions', sessionId));
+export const deleteWorkoutSession = async (uid: string, sessionId: string) => {
+  if (isDemoMode()) return demoDb.deleteWorkoutSession(sessionId);
+  return deleteDoc(doc(db, 'users', uid, 'workout_sessions', sessionId));
+};
 
 // ─── Approval / Access Control ────────────────────────────────────────────────
 
@@ -296,10 +342,15 @@ export const createUserStatus = (
 export const subscribeToUserStatus = (
   uid: string,
   callback: (status: ApprovalStatus | null) => void
-): Unsubscribe =>
-  onSnapshot(doc(db, 'user_status', uid), (snap) =>
+): Unsubscribe => {
+  if (isDemoMode()) {
+    callback('approved'); // demo user skips the admin-approval gate
+    return noop;
+  }
+  return onSnapshot(doc(db, 'user_status', uid), (snap) =>
     callback(snap.exists() ? (snap.data().status as ApprovalStatus) : null)
   );
+};
 
 /** Admin: fetch all users (ordered by creation date). */
 export const getAllUserStatuses = async (): Promise<UserStatusDoc[]> => {

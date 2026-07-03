@@ -17,17 +17,11 @@ import {
 import SendIcon from '@mui/icons-material/Send';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import PersonIcon from '@mui/icons-material/Person';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '../firebase/config';
 import { useAuthStore } from '../store/authStore';
 import { useChatStore } from '../store/chatStore';
 import { createChatSession, appendMessage } from '../firebase/firestore';
+import { chatFn } from '../firebase/callables';
 import type { Message } from '../types/chat';
-
-const chatFn = httpsCallable<
-  { message: string; sessionId: string },
-  { reply: string }
->(functions, 'chat');
 
 export default function ChatPage() {
   const { t } = useTranslation();

@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useProfileStore } from '../store/profileStore';
 import { subscribeToProfile, subscribeToUserStatus } from '../firebase/firestore';
+import { isDemoMode } from '../demo';
+import * as demoDb from '../demo/db';
 
 export const useProfileListener = () => {
   const { currentUser } = useAuthStore();
@@ -13,6 +15,15 @@ export const useProfileListener = () => {
   } = useProfileStore();
 
   useEffect(() => {
+    if (isDemoMode()) {
+      // Demo data is local and synchronous — set everything at once to avoid
+      // a routing race with the auth listener.
+      setProfile(demoDb.getProfile());
+      setProfileLoading(false);
+      setApprovalStatus('approved');
+      setApprovalLoading(false);
+      return;
+    }
     if (!currentUser) {
       setProfile(null);
       setProfileLoading(false);
