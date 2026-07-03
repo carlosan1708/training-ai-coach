@@ -6,17 +6,21 @@ import {
   collection,
   addDoc,
   updateDoc,
+  deleteDoc,
   arrayUnion,
   serverTimestamp,
   getDocs,
   query,
+  where,
   orderBy,
+  limit,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './config';
 import type { UserProfile } from '../types/user';
 import type { DailyLog } from '../types/log';
 import type { ChatSession, Message } from '../types/chat';
+import type { Routine, WorkoutSession } from '../types/routine';
 
 // Profile
 export const getProfile = async (uid: string): Promise<UserProfile | null> => {
@@ -168,6 +172,93 @@ export const setActiveMealPlan = async (uid: string, planId: string) => {
 
 export const deleteMealPlan = (uid: string, planId: string) =>
   doc(db, 'users', uid, 'meal_plans', planId);
+
+// ─── Workout Routines ─────────────────────────────────────────────────────────
+
+export const getRoutines = async (uid: string): Promise<Routine[]> => {
+  const snap = await getDocs(
+    query(collection(db, 'users', uid, 'routines'), orderBy('created_at', 'desc'))
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Routine));
+};
+
+export const getRoutine = async (uid: string, routineId: string): Promise<Routine | null> => {
+  const snap = await getDoc(doc(db, 'users', uid, 'routines', routineId));
+  return snap.exists() ? ({ id: snap.id, ...snap.data() } as Routine) : null;
+};
+
+export const addRoutine = async (
+  uid: string,
+  data: Omit<Routine, 'id' | 'created_at' | 'updated_at'>
+): Promise<string> => {
+  const ref = await addDoc(collection(db, 'users', uid, 'routines'), {
+    ...data,
+    created_at: serverTimestamp(),
+    updated_at: serverTimestamp(),
+  });
+  return ref.id;
+};
+
+export const updateRoutine = (
+  uid: string,
+  routineId: string,
+  data: Partial<Omit<Routine, 'id'>>
+) =>
+  setDoc(
+    doc(db, 'users', uid, 'routines', routineId),
+    { ...data, updated_at: serverTimestamp() },
+    { merge: true }
+  );
+
+export const deleteRoutine = (uid: string, routineId: string) =>
+  deleteDoc(doc(db, 'users', uid, 'routines', routineId));
+
+// ─── Workout Sessions ─────────────────────────────────────────────────────────
+
+export const getWorkoutSession = async (
+  uid: string,
+  sessionId: string
+): Promise<WorkoutSession | null> => {
+  const snap = await getDoc(doc(db, 'users', uid, 'workout_sessions', sessionId));
+  return snap.exists() ? ({ id: snap.id, ...snap.data() } as WorkoutSession) : null;
+};
+
+/** Sessions for one routine, newest first. */
+export const getRoutineSessions = async (
+  uid: string,
+  routineId: string,
+  max = 30
+): Promise<WorkoutSession[]> => {
+  const snap = await getDocs(
+    query(
+      collection(db, 'users', uid, 'workout_sessions'),
+      where('routine_id', '==', routineId),
+      orderBy('date', 'desc'),
+      limit(max)
+    )
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as WorkoutSession));
+};
+
+export const addWorkoutSession = async (
+  uid: string,
+  data: Omit<WorkoutSession, 'id' | 'started_at'>
+): Promise<string> => {
+  const ref = await addDoc(collection(db, 'users', uid, 'workout_sessions'), {
+    ...data,
+    started_at: serverTimestamp(),
+  });
+  return ref.id;
+};
+
+export const updateWorkoutSession = (
+  uid: string,
+  sessionId: string,
+  data: Partial<Omit<WorkoutSession, 'id'>>
+) => setDoc(doc(db, 'users', uid, 'workout_sessions', sessionId), data, { merge: true });
+
+export const deleteWorkoutSession = (uid: string, sessionId: string) =>
+  deleteDoc(doc(db, 'users', uid, 'workout_sessions', sessionId));
 
 // ─── Approval / Access Control ────────────────────────────────────────────────
 

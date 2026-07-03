@@ -20,6 +20,7 @@ const ADMIN_UID = import.meta.env.VITE_ADMIN_UID as string | undefined;
 const navItems = [
   { labelKey: 'nav.dashboard', path: '/dashboard', icon: <DashboardIcon /> },
   { labelKey: 'nav.log',       path: '/log',       icon: <EditNoteIcon /> },
+  { labelKey: 'nav.workouts',  path: '/routines',  icon: <FitnessCenterIcon /> },
   { labelKey: 'nav.plans',     path: '/plans',     icon: <RestaurantMenuIcon /> },
   { labelKey: 'nav.chat',      path: '/chat',      icon: <ChatIcon /> },
 ];
