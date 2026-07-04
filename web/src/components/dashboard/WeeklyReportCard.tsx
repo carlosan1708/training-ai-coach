@@ -24,6 +24,12 @@ import { getLatestWeeklyReport } from '../../firebase/firestore';
 import { generateWeeklyReportFn } from '../../firebase/callables';
 import type { WeeklyReport } from '../../types/report';
 
+const isoDaysAgo = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().split('T')[0];
+};
+
 export default function WeeklyReportCard() {
   const { t } = useTranslation();
   const { currentUser } = useAuthStore();
@@ -32,13 +38,6 @@ export default function WeeklyReportCard() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!currentUser) return;
-    getLatestWeeklyReport(currentUser.uid)
-      .then(setReport)
-      .finally(() => setLoading(false));
-  }, [currentUser]);
 
   const generate = async () => {
     setGenerating(true);
@@ -52,6 +51,37 @@ export default function WeeklyReportCard() {
       setGenerating(false);
     }
   };
+
+  // On login: show the latest report, and refresh it automatically when it's
+  // missing or covers a week that ended 7+ days ago.
+  useEffect(() => {
+    if (!currentUser) return;
+    let cancelled = false;
+    (async () => {
+      let latest: WeeklyReport | null = null;
+      try {
+        latest = await getLatestWeeklyReport(currentUser.uid);
+      } catch {
+        // ignore — we'll just offer manual generation
+      }
+      if (cancelled) return;
+      setReport(latest);
+      setLoading(false);
+
+      const stale = !latest || latest.week_end <= isoDaysAgo(7);
+      if (!stale) return;
+      setGenerating(true);
+      try {
+        const result = await generateWeeklyReportFn({});
+        if (!cancelled) setReport(result.data.report);
+      } catch {
+        // silent — the manual Generate button stays available
+      } finally {
+        if (!cancelled) setGenerating(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentUser]);
 
   if (loading) return null;
 
