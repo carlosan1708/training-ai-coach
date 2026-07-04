@@ -476,7 +476,7 @@ def plan_workout_session(req: https_fn.CallableRequest) -> dict:
 
     # Compact the session history: keep only what the coach needs
     history = []
-    for s in recent_sessions[:4]:
+    for s in recent_sessions[:6]:
         history.append({
             "date": s.get("date"),
             "exercises": [
@@ -516,7 +516,14 @@ def plan_workout_session(req: https_fn.CallableRequest) -> dict:
         "- If recent energy is low (<=2) or notes mention fatigue/soreness/illness, "
         "reduce volume or load and say why.\n"
         "- For bodyweight/duration exercises progress reps or sets instead of weight.\n"
-        "- Round weights to practical increments (1.25 / 2.5 kg).\n\n"
+        "- Round weights to practical increments (1.25 / 2.5 kg).\n"
+        "- PLATEAU CHECK (important): compare each exercise's top working weight across "
+        "the session history dates. If it has not increased over a span of 14 days or "
+        "more, explicitly tell the user in 'insight' that the lift has stalled for ~2 "
+        "weeks, and change strategy for that exercise instead of repeating it: pick ONE "
+        "of (a) deload ~10% and rebuild, (b) change the rep scheme (e.g. 4x8 -> 5x5), or "
+        "(c) suggest a variation — and set that exercise's 'note' accordingly with "
+        "change='decrease' for a deload or 'hold' otherwise.\n\n"
         "Return ONLY a valid JSON object — no markdown — like:\n"
         '{"insight":"2-3 sentence coaching summary for today: overall readiness, '
         'what changed vs last session and why, and one focus point.",'

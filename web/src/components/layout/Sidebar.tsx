@@ -6,7 +6,6 @@ import {
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import EditNoteIcon from '@mui/icons-material/EditNote';
-import RestaurantMenuIcon from '@mui/icons-material/RestaurantMenu';
 import ChatIcon from '@mui/icons-material/Chat';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
@@ -17,11 +16,11 @@ import { useAuthStore } from '../../store/authStore';
 const DRAWER_WIDTH = 240;
 const ADMIN_UID = import.meta.env.VITE_ADMIN_UID as string | undefined;
 
+// Meal Plans is intentionally unlisted for now — the page stays reachable at /plans
 const navItems = [
   { labelKey: 'nav.dashboard', path: '/dashboard', icon: <DashboardIcon /> },
   { labelKey: 'nav.log',       path: '/log',       icon: <EditNoteIcon /> },
   { labelKey: 'nav.workouts',  path: '/routines',  icon: <FitnessCenterIcon /> },
-  { labelKey: 'nav.plans',     path: '/plans',     icon: <RestaurantMenuIcon /> },
   { labelKey: 'nav.chat',      path: '/chat',      icon: <ChatIcon /> },
 ];
 

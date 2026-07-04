@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { BottomNavigation, BottomNavigationAction, Paper } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import EditNoteIcon from '@mui/icons-material/EditNote';
-import RestaurantMenuIcon from '@mui/icons-material/RestaurantMenu';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import ChatIcon from '@mui/icons-material/Chat';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
@@ -11,11 +10,11 @@ import { useAuthStore } from '../../store/authStore';
 
 const ADMIN_UID = import.meta.env.VITE_ADMIN_UID as string | undefined;
 
+// Meal Plans is intentionally unlisted for now — the page stays reachable at /plans
 const baseNavItems = [
   { labelKey: 'nav.dashboard', value: '/dashboard', icon: <DashboardIcon /> },
   { labelKey: 'nav.log',       value: '/log',       icon: <EditNoteIcon /> },
   { labelKey: 'nav.workouts',  value: '/routines',  icon: <FitnessCenterIcon /> },
-  { labelKey: 'nav.plans',     value: '/plans',     icon: <RestaurantMenuIcon /> },
   { labelKey: 'nav.chat',      value: '/chat',      icon: <ChatIcon /> },
 ];
 
