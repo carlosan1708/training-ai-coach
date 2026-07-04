@@ -337,5 +337,30 @@
   "demo": {
     "banner": "Modo demo — datos de ejemplo guardados solo en este dispositivo. Las respuestas de IA son simuladas.",
     "exit": "Salir de la demo"
+  },
+  "report": {
+    "title": "Informe Semanal IA",
+    "generate": "Generar informe",
+    "refresh": "Regenerar",
+    "generating": "Analizando tu semana...",
+    "empty": "Recibe un resumen de IA de tu semana de entrenamiento: volumen, tendencia de peso, logros y en qué enfocarte.",
+    "week": "{{start}} → {{end}}",
+    "sessions": "{{count}} sesiones",
+    "volume": "{{kg}} kg levantados",
+    "wins": "LOGROS",
+    "focus": "PRÓXIMA SEMANA",
+    "error": "No se pudo generar el informe. Inténtalo de nuevo."
+  },
+  "forecast": {
+    "title": "Pronóstico de Objetivo",
+    "trend": "{{kg}} kg/semana",
+    "current": "Actual",
+    "goal": "Objetivo",
+    "eta": "A este ritmo alcanzarás {{goal}} kg alrededor del {{date}}.",
+    "reached": "Has alcanzado tu peso objetivo — ¿hora de fijar uno nuevo? 🎉",
+    "stalled": "Tu peso lleva un tiempo estancado. Si esperabas cambios, pide al coach revisar tus calorías.",
+    "movingAway": "Te estás alejando de tu objetivo ({{kg}} kg/semana). Vale la pena consultarlo con el coach.",
+    "insufficient": "Registra tu peso unos días más para desbloquear el pronóstico.",
+    "noGoal": "Define un peso objetivo en tu perfil para ver el pronóstico."
   }
 }

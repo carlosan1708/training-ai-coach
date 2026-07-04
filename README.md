@@ -30,7 +30,9 @@ Training AI Coach is a **serverless, mobile-first web app** that combines a mult
 
 - 🏋️ **Workout routines with animated exercise demos** — build routines from a searchable library of **870+ exercises with demo images**, or let the AI generate one from your profile (goal, equipment, session length). Custom GIF URLs supported per exercise.
 - 🤖 **AI session planning (progressive overload)** — every time you start a workout, the AI looks at your recent sessions and daily readiness (energy, weight, notes) and adjusts **weight, reps, and sets per exercise**, with a coaching insight for the day.
-- 📈 **Per-routine progress tracking** — log every set (weight × reps) with autosave, see *last time* numbers next to today's targets, and charts of top-set weight and volume per exercise.
+- 📈 **Per-routine progress tracking** — log every set (weight × reps) with autosave, see *last time* numbers next to today's targets, and charts of top-set weight and volume per exercise. If a lift hasn't moved in **2+ weeks**, the AI flags the plateau and changes strategy (deload, new rep scheme, or a variation).
+- 📰 **Weekly AI report** — every Sunday (or on demand) the coach summarizes your week: sessions, total volume vs. last week, weight trend, energy, wins, and what to focus on next.
+- 🎯 **Goal forecast** — a regression over your recent weigh-ins projects when you'll hit your goal weight ("at this rate: ~August 15") and warns when your weight stalls or trends the wrong way.
 - 🍽️ **Meal plan intelligence** — upload a PDF/DOC/image meal plan (English or Spanish); Gemini extracts meals, macros, and rules, and the diet agent answers with your plan as context.
 - ⚖️ **Body composition parsing** — screenshot from Fitdays/InBody/Tanita/Withings or an ISAK anthropometry report → structured data + AI summary.
 - 💬 **Multi-agent chat** — a LangGraph router sends each message to a diet, exercise, health, or general coach agent, all enriched with your profile, active meal plan, and last 7 days of logs.

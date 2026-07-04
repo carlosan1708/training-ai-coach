@@ -6,6 +6,7 @@
 import type { UserProfile } from '../types/user';
 import type { DailyLog } from '../types/log';
 import type { Routine, WorkoutSession } from '../types/routine';
+import type { WeeklyReport } from '../types/report';
 import type { BodyCompositionReportDoc, MealPlanDoc } from '../firebase/firestore';
 
 export const DB_KEY = 'tac_demo_db';
@@ -17,6 +18,7 @@ export interface DemoDb {
   sessions: WorkoutSession[];
   meal_plans: MealPlanDoc[];
   reports: BodyCompositionReportDoc[];
+  weekly_reports?: WeeklyReport[];
 }
 
 const read = (): DemoDb => JSON.parse(localStorage.getItem(DB_KEY) ?? '{}') as DemoDb;
@@ -44,6 +46,12 @@ export const upsertDailyLog = (date: string, data: Partial<DailyLog>) => {
   db.logs[date] = { ...(db.logs[date] ?? {}), ...data } as DailyLog;
   write(db);
 };
+
+/** Last `days` daily logs, oldest first. */
+export const getRecentLogs = (days: number): DailyLog[] =>
+  Object.values(read().logs ?? {})
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-days);
 
 // ── Routines ───────────────────────────────────────────────────────────────
 
@@ -132,6 +140,21 @@ export const setActiveMealPlan = (id: string) => {
 export const deleteMealPlan = (id: string) => {
   const db = read();
   db.meal_plans = (db.meal_plans ?? []).filter((p) => p.id !== id);
+  write(db);
+};
+
+/** Completed sessions on or after the given ISO date. */
+export const getSessionsSince = (dateIso: string): WorkoutSession[] =>
+  (read().sessions ?? []).filter((s) => s.date >= dateIso && s.status === 'completed');
+
+// ── Weekly reports ─────────────────────────────────────────────────────────
+
+export const getLatestWeeklyReport = (): WeeklyReport | null =>
+  (read().weekly_reports ?? [])[0] ?? null;
+
+export const saveWeeklyReport = (report: WeeklyReport) => {
+  const db = read();
+  db.weekly_reports = [report, ...(db.weekly_reports ?? [])].slice(0, 10);
   write(db);
 };
 

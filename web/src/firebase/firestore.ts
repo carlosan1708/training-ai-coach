@@ -14,6 +14,9 @@ import {
   where,
   orderBy,
   limit,
+  documentId,
+  startAt,
+  endAt,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './config';
@@ -23,6 +26,7 @@ import type { UserProfile } from '../types/user';
 import type { DailyLog } from '../types/log';
 import type { ChatSession, Message } from '../types/chat';
 import type { Routine, WorkoutSession } from '../types/routine';
+import type { WeeklyReport } from '../types/report';
 
 const noop = () => {};
 
@@ -68,6 +72,41 @@ export const upsertDailyLog = async (
 ) => {
   if (isDemoMode()) return demoDb.upsertDailyLog(date, data);
   return setDoc(doc(db, 'users', uid, 'logs', date), data, { merge: true });
+};
+
+/** Daily logs from the last `days` days, oldest first (log doc IDs are YYYY-MM-DD). */
+export const getRecentDailyLogs = async (
+  uid: string,
+  days = 30
+): Promise<DailyLog[]> => {
+  if (isDemoMode()) return demoDb.getRecentLogs(days);
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - days);
+  const snap = await getDocs(
+    query(
+      collection(db, 'users', uid, 'logs'),
+      orderBy(documentId()),
+      startAt(start.toISOString().split('T')[0]),
+      endAt(end.toISOString().split('T')[0])
+    )
+  );
+  return snap.docs.map((d) => ({ ...(d.data() as DailyLog), date: d.id }));
+};
+
+// Weekly AI Reports
+export const getLatestWeeklyReport = async (uid: string): Promise<WeeklyReport | null> => {
+  if (isDemoMode()) return demoDb.getLatestWeeklyReport();
+  const snap = await getDocs(
+    query(
+      collection(db, 'users', uid, 'weekly_reports'),
+      orderBy('created_at', 'desc'),
+      limit(1)
+    )
+  );
+  return snap.empty
+    ? null
+    : ({ id: snap.docs[0].id, ...snap.docs[0].data() } as WeeklyReport);
 };
 
 // Chat Sessions
