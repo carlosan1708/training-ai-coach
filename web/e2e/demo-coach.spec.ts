@@ -71,4 +71,16 @@ test.describe('AI coach & daily log', () => {
     await page.goto('/plans');
     await expect(page.getByText('Hypertrophy Meal Plan').first()).toBeVisible();
   });
+
+  test('meal photo analysis is gated off in demo mode', async ({ page }) => {
+    await enterDemo(page);
+    await page.goto('/log');
+    await page.getByRole('tab', { name: 'Meals' }).click();
+    // demo shows the "full app only" notice and no uploader
+    await expect(page.getByText('available in the full app', { exact: false })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Take \/ Upload Photo/ })).toHaveCount(0);
+    // and the dashboard nutrition card is hidden in demo
+    await page.goto('/dashboard');
+    await expect(page.getByText("Today's Nutrition")).toHaveCount(0);
+  });
 });

@@ -33,7 +33,9 @@ Training AI Coach is a **serverless, mobile-first web app** that combines a mult
 - 📈 **Per-routine progress tracking** — log every set (weight × reps) with autosave, see *last time* numbers next to today's targets, and charts of top-set weight and volume per exercise. If a lift hasn't moved in **2+ weeks**, the AI flags the plateau and changes strategy (deload, new rep scheme, or a variation).
 - 📰 **Weekly AI report** — when you open the app and your last report is a week old (or on demand), the coach summarizes your week: sessions, total volume vs. last week, weight trend, energy, wins, and what to focus on next.
 - 🎯 **Goal forecast** — a regression over your recent weigh-ins projects when you'll hit your goal weight ("at this rate: ~August 15") and warns when your weight stalls or trends the wrong way.
+- 📷 **Meal photo nutrition tracking** — snap a photo of your plate and Gemini estimates the calories and macros (protein / carbs / fat) per food item; log it and track daily totals against your calorie and protein targets. *(Full app only — not simulated in demo mode.)*
 - 🍽️ **Meal plan intelligence** — upload a PDF/DOC/image meal plan (English or Spanish); Gemini extracts meals, macros, and rules, and the diet agent answers with your plan as context.
+- 📧 **Signup email alerts** — when a new user requests access, the admin gets an email so they can approve or reject from the Admin panel.
 - ⚖️ **Body composition parsing** — screenshot from Fitdays/InBody/Tanita/Withings or an ISAK anthropometry report → structured data + AI summary.
 - 💬 **Multi-agent chat** — a LangGraph router sends each message to a diet, exercise, health, or general coach agent, all enriched with your profile, active meal plan, and last 7 days of logs.
 - 🌍 **Fully bilingual** — English & Spanish UI and AI responses.
@@ -136,8 +138,10 @@ users/{uid}/chat_sessions/{sessionId} chat history
 | `generate_routine` | Designs a 5–8 exercise routine from the user profile and an optional focus |
 | `plan_workout_session` | AI-adjusted targets for today's session (progressive overload + readiness) |
 | `parse_exercise_photo` | Gemini vision reads whiteboard/notes photos into structured exercises |
+| `analyze_meal_photo` | Gemini vision estimates calories & macros from a meal photo |
 | `parse_body_composition_report` | Extracts BIA & ISAK/anthropometric report data |
 | `extract_meal_plan_content` | Extracts structured nutrition data from meal plan documents |
+| `notify_signup_request` | Firestore trigger — emails the admin when a new user requests access |
 
 ---
 
@@ -216,10 +220,23 @@ VITE_ADMIN_UID=<your Firebase Auth UID>
 **3. Secrets & config**
 
 ```bash
-firebase secrets:set GEMINI_API_KEY
+firebase functions:secrets:set GEMINI_API_KEY
 ```
 
 Set your storage bucket name in `firebase.json`, and your admin UID in `firestore.rules`.
+
+**Signup email notifications (optional).** To get an email when a new user requests
+access, set SMTP credentials as secrets and the recipient as an env var:
+
+```bash
+firebase functions:secrets:set SMTP_USER        # e.g. your Gmail address
+firebase functions:secrets:set SMTP_PASSWORD    # a Gmail App Password (not your login password)
+echo "ADMIN_EMAIL=you@example.com" >> functions/.env   # where alerts are sent (defaults to SMTP_USER)
+```
+
+Gmail requires a 16-character [App Password](https://myaccount.google.com/apppasswords)
+(with 2-Step Verification on). If these aren't set, signups still work — the
+`notify_signup_request` trigger just skips the email.
 
 **4. Deploy** (includes the Firestore composite index for workout history)
 

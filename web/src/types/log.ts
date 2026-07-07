@@ -6,11 +6,38 @@ export interface Measurements {
   thighs_cm?: number;
 }
 
+export interface MealItem {
+  name: string;
+  portion?: string;
+  calories?: number;
+  protein_g?: number;
+  carbs_g?: number;
+  fat_g?: number;
+}
+
 export interface FoodLogEntry {
   meal: string;
   description: string;
   adherent: boolean;
   timestamp: string;
+  // Nutrition (from photo analysis or manual entry)
+  calories?: number;
+  protein_g?: number;
+  carbs_g?: number;
+  fat_g?: number;
+  items?: MealItem[];
+  photo_url?: string;
+}
+
+/** Shape returned by the analyze_meal_photo cloud function. */
+export interface MealAnalysis {
+  name: string;
+  items: MealItem[];
+  total_calories?: number;
+  total_protein_g?: number;
+  total_carbs_g?: number;
+  total_fat_g?: number;
+  confidence?: 'low' | 'medium' | 'high';
 }
 
 export interface ExerciseLogEntry {

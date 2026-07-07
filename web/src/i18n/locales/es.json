@@ -160,7 +160,8 @@
     "notes": "Notas",
     "notesHint": "¿Cómo fue tu día? ¿Alguna comida omitida, dolor muscular, etc.?",
     "save": "Guardar Registro",
-    "saved": "¡Registro guardado!"
+    "saved": "¡Registro guardado!",
+    "tabMeals": "Comidas"
   },
   "measurements": {
     "hint": "Dos tipos complementarios — ambos alimentan al coach de IA",
@@ -362,5 +363,26 @@
     "movingAway": "Te estás alejando de tu objetivo ({{kg}} kg/semana). Vale la pena consultarlo con el coach.",
     "insufficient": "Registra tu peso unos días más para desbloquear el pronóstico.",
     "noGoal": "Define un peso objetivo en tu perfil para ver el pronóstico."
+  },
+  "meals": {
+    "todayTotals": "Nutrición de Hoy",
+    "todayNutrition": "Nutrición de Hoy",
+    "calories": "Calorías",
+    "protein": "Proteína",
+    "carbs": "Carbohidratos",
+    "fat": "Grasa",
+    "mealCount": "{{count}} comidas",
+    "snapTitle": "Fotografía tu comida",
+    "snapHint": "Toma o sube una foto de tu comida — la IA estima las calorías y macros.",
+    "takePhoto": "Tomar / Subir Foto",
+    "changePhoto": "Cambiar Foto",
+    "analyze": "Analizar comida",
+    "analyzing": "Analizando...",
+    "analyzeError": "No se pudo leer la foto. Prueba con una imagen más clara.",
+    "reviewEstimate": "Revisa la estimación de la IA y regístrala",
+    "meal": "Comida",
+    "logMeal": "Registrar comida",
+    "loggedToday": "Registrado hoy",
+    "demoUnavailable": "El análisis de comidas por foto está disponible en la app completa tras iniciar sesión — usa IA en vivo para estimar calorías y macros de tus fotos."
   }
 }

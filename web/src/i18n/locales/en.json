@@ -160,7 +160,8 @@
     "notes": "Notes",
     "notesHint": "How was your day? Any meals skipped, soreness, etc.",
     "save": "Save Log",
-    "saved": "Log saved!"
+    "saved": "Log saved!",
+    "tabMeals": "Meals"
   },
   "measurements": {
     "hint": "Two complementary types — both feed the AI coach",
@@ -362,5 +363,26 @@
     "movingAway": "You're trending away from your goal ({{kg}} kg/week). Worth a check-in with the coach.",
     "insufficient": "Log your weight a few more days to unlock a forecast.",
     "noGoal": "Set a goal weight in your profile to see a forecast."
+  },
+  "meals": {
+    "todayTotals": "Today's Nutrition",
+    "todayNutrition": "Today's Nutrition",
+    "calories": "Calories",
+    "protein": "Protein",
+    "carbs": "Carbs",
+    "fat": "Fat",
+    "mealCount": "{{count}} meals",
+    "snapTitle": "Snap a meal",
+    "snapHint": "Take or upload a photo of your meal — AI estimates the calories and macros.",
+    "takePhoto": "Take / Upload Photo",
+    "changePhoto": "Change Photo",
+    "analyze": "Analyze meal",
+    "analyzing": "Analyzing...",
+    "analyzeError": "Couldn't read that photo. Try a clearer picture of the food.",
+    "reviewEstimate": "Review the AI estimate, then log it",
+    "meal": "Meal",
+    "logMeal": "Log meal",
+    "loggedToday": "Logged today",
+    "demoUnavailable": "Meal photo analysis is available in the full app after signing in — it uses live AI to estimate calories and macros from your photos."
   }
 }

@@ -5,9 +5,11 @@ import { Box, Container, Tab, Tabs } from '@mui/material';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import StraightenIcon from '@mui/icons-material/Straighten';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
+import RestaurantIcon from '@mui/icons-material/Restaurant';
 import DailyTab from './tabs/DailyTab';
 import MeasurementsTab from './tabs/MeasurementsTab';
 import ExerciseTab from './tabs/ExerciseTab';
+import MealsTab from './tabs/MealsTab';
 
 const today = new Date().toISOString().split('T')[0];
 
@@ -30,6 +32,7 @@ export default function LogPage() {
             <Tab icon={<EditNoteIcon />} label={t('dailyLog.tabDaily')} iconPosition="start" />
             <Tab icon={<StraightenIcon />} label={t('dailyLog.tabMeasurements')} iconPosition="start" />
             <Tab icon={<FitnessCenterIcon />} label={t('dailyLog.tabExercises')} iconPosition="start" />
+            <Tab icon={<RestaurantIcon />} label={t('dailyLog.tabMeals')} iconPosition="start" />
           </Tabs>
         </Container>
       </Box>
@@ -38,6 +41,7 @@ export default function LogPage() {
         {tab === 0 && <DailyTab date={today} />}
         {tab === 1 && <MeasurementsTab date={today} />}
         {tab === 2 && <ExerciseTab date={today} />}
+        {tab === 3 && <MealsTab date={today} />}
       </Box>
     </Box>
   );
