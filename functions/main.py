@@ -10,13 +10,14 @@ from email.message import EmailMessage
 
 import firebase_admin
 from firebase_admin import firestore as fs
-from firebase_functions import https_fn, firestore_fn
+from firebase_functions import https_fn, firestore_fn, options
 from google.cloud.firestore_v1.base_query import FieldFilter
 from firebase_functions.params import SecretParam, StringParam
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from agents.coordinator import build_graph
+from lib.llm import content_text as _content_text
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,6 +40,13 @@ firebase_admin.initialize_app()
 # ─── Secrets & params ─────────────────────────────────────────────────────────
 GEMINI_API_KEY = SecretParam("GEMINI_API_KEY")
 
+# Gemini retires model IDs on a rolling basis and a retired ID fails at call
+# time with a 404, not at deploy time — keep the name in one place.
+GEMINI_MODEL = "gemini-3.5-flash"
+
+# The Gemini calls peak above the 256 MiB default (observed 272 MiB).
+AI_MEMORY = options.MemoryOption.MB_512
+
 # Email notifications (signup requests). Credentials are secrets; host/port/
 # recipient are plain params so they can be set without redeploying secrets.
 SMTP_USER = SecretParam("SMTP_USER")          # e.g. your Gmail address
@@ -50,7 +58,7 @@ ADMIN_EMAIL = StringParam("ADMIN_EMAIL", default="")  # where notifications go
 
 # ─── chat ─────────────────────────────────────────────────────────────────────
 
-@https_fn.on_call(secrets=[GEMINI_API_KEY])
+@https_fn.on_call(secrets=[GEMINI_API_KEY], memory=AI_MEMORY)
 def chat(req: https_fn.CallableRequest) -> dict:
     if req.auth is None:
         raise https_fn.HttpsError(
@@ -150,14 +158,14 @@ def chat(req: https_fn.CallableRequest) -> dict:
     })
 
     ai_messages = [m for m in result["messages"] if isinstance(m, AIMessage)]
-    reply = ai_messages[-1].content if ai_messages else "Sorry, I couldn't generate a response."
+    reply = _content_text(ai_messages[-1]) if ai_messages else "Sorry, I couldn't generate a response."
 
     return {"reply": reply}
 
 
 # ─── parse_exercise_photo ─────────────────────────────────────────────────────
 
-@https_fn.on_call(secrets=[GEMINI_API_KEY])
+@https_fn.on_call(secrets=[GEMINI_API_KEY], memory=AI_MEMORY)
 def parse_exercise_photo(req: https_fn.CallableRequest) -> dict:
     """
     Receives a base64-encoded image, runs Gemini vision on it,
@@ -180,7 +188,7 @@ def parse_exercise_photo(req: https_fn.CallableRequest) -> dict:
         )
 
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
+        model=GEMINI_MODEL,
         google_api_key=GEMINI_API_KEY.value,
     )
 
@@ -206,7 +214,7 @@ def parse_exercise_photo(req: https_fn.CallableRequest) -> dict:
     ])
 
     response = llm.invoke([message])
-    text = response.content.strip()
+    text = _content_text(response).strip()
 
     # Strip markdown code fences if Gemini wraps the output
     text = re.sub(r"^```(?:json)?\s*", "", text)
@@ -226,7 +234,7 @@ def parse_exercise_photo(req: https_fn.CallableRequest) -> dict:
 
 # ─── parse_body_composition_report ───────────────────────────────────────────
 
-@https_fn.on_call(secrets=[GEMINI_API_KEY])
+@https_fn.on_call(secrets=[GEMINI_API_KEY], memory=AI_MEMORY)
 def parse_body_composition_report(req: https_fn.CallableRequest) -> dict:
     """
     Extracts structured data from a body composition analyzer report
@@ -252,7 +260,7 @@ def parse_body_composition_report(req: https_fn.CallableRequest) -> dict:
         )
 
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
+        model=GEMINI_MODEL,
         google_api_key=GEMINI_API_KEY.value,
     )
 
@@ -319,7 +327,7 @@ def parse_body_composition_report(req: https_fn.CallableRequest) -> dict:
     ])
 
     response = _invoke_llm(llm, [message])
-    text = response.content.strip()
+    text = _content_text(response).strip()
     text = re.sub(r"^```(?:json)?\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
 
@@ -373,7 +381,7 @@ def _extract_json(text: str):
 
 # ─── generate_routine ────────────────────────────────────────────────────────
 
-@https_fn.on_call(secrets=[GEMINI_API_KEY])
+@https_fn.on_call(secrets=[GEMINI_API_KEY], memory=AI_MEMORY)
 def generate_routine(req: https_fn.CallableRequest) -> dict:
     """
     Generates a structured workout routine from the user's profile plus an
@@ -420,11 +428,11 @@ def generate_routine(req: https_fn.CallableRequest) -> dict:
     )
 
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
+        model=GEMINI_MODEL,
         google_api_key=GEMINI_API_KEY.value,
     )
     response = _invoke_llm(llm, [HumanMessage(content=prompt)])
-    routine = _extract_json(response.content)
+    routine = _extract_json(_content_text(response))
 
     if not isinstance(routine, dict) or not routine.get("exercises"):
         raise https_fn.HttpsError(
@@ -437,7 +445,7 @@ def generate_routine(req: https_fn.CallableRequest) -> dict:
 
 # ─── plan_workout_session ────────────────────────────────────────────────────
 
-@https_fn.on_call(secrets=[GEMINI_API_KEY])
+@https_fn.on_call(secrets=[GEMINI_API_KEY], memory=AI_MEMORY)
 def plan_workout_session(req: https_fn.CallableRequest) -> dict:
     """
     Given a routine and its recent session history, returns AI-adjusted
@@ -546,11 +554,11 @@ def plan_workout_session(req: https_fn.CallableRequest) -> dict:
     )
 
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
+        model=GEMINI_MODEL,
         google_api_key=GEMINI_API_KEY.value,
     )
     response = _invoke_llm(llm, [HumanMessage(content=prompt)])
-    plan = _extract_json(response.content)
+    plan = _extract_json(_content_text(response))
 
     if not isinstance(plan, dict) or not plan.get("exercises"):
         raise https_fn.HttpsError(
@@ -663,11 +671,11 @@ def _generate_weekly_report(uid: str, db, stats: dict | None = None) -> dict:
     )
 
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
+        model=GEMINI_MODEL,
         google_api_key=GEMINI_API_KEY.value,
     )
     response = _invoke_llm(llm, [HumanMessage(content=prompt)])
-    narrative = _extract_json(response.content)
+    narrative = _extract_json(_content_text(response))
     if not isinstance(narrative, dict):
         narrative = {}
 
@@ -686,7 +694,7 @@ def _generate_weekly_report(uid: str, db, stats: dict | None = None) -> dict:
     return report
 
 
-@https_fn.on_call(secrets=[GEMINI_API_KEY])
+@https_fn.on_call(secrets=[GEMINI_API_KEY], memory=AI_MEMORY)
 def generate_weekly_report(req: https_fn.CallableRequest) -> dict:
     """Weekly report — the client calls this on login when the last report is stale."""
     if req.auth is None:
@@ -699,7 +707,7 @@ def generate_weekly_report(req: https_fn.CallableRequest) -> dict:
 
 # ─── analyze_meal_photo ───────────────────────────────────────────────────────
 
-@https_fn.on_call(secrets=[GEMINI_API_KEY])
+@https_fn.on_call(secrets=[GEMINI_API_KEY], memory=AI_MEMORY)
 def analyze_meal_photo(req: https_fn.CallableRequest) -> dict:
     """
     Receives a base64-encoded photo of a meal and returns structured
@@ -722,7 +730,7 @@ def analyze_meal_photo(req: https_fn.CallableRequest) -> dict:
         )
 
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
+        model=GEMINI_MODEL,
         google_api_key=GEMINI_API_KEY.value,
     )
 
@@ -757,7 +765,7 @@ def analyze_meal_photo(req: https_fn.CallableRequest) -> dict:
     ])
 
     response = _invoke_llm(llm, [message])
-    meal = _extract_json(response.content)
+    meal = _extract_json(_content_text(response))
 
     if not isinstance(meal, dict) or meal.get("error"):
         raise https_fn.HttpsError(
@@ -829,7 +837,7 @@ def notify_signup_request(event: firestore_fn.Event[firestore_fn.DocumentSnapsho
 
 # ─── extract_meal_plan_content ────────────────────────────────────────────────
 
-@https_fn.on_call(secrets=[GEMINI_API_KEY])
+@https_fn.on_call(secrets=[GEMINI_API_KEY], memory=AI_MEMORY)
 def extract_meal_plan_content(req: https_fn.CallableRequest) -> dict:
     """
     Extracts structured nutrition data from a meal plan image or PDF.
@@ -873,7 +881,7 @@ def extract_meal_plan_content(req: https_fn.CallableRequest) -> dict:
     )
 
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
+        model=GEMINI_MODEL,
         google_api_key=GEMINI_API_KEY.value,
     )
 
@@ -891,7 +899,7 @@ def extract_meal_plan_content(req: https_fn.CallableRequest) -> dict:
         ])
 
     response = _invoke_llm(llm, [message])
-    text = response.content.strip()
+    text = _content_text(response).strip()
     text = re.sub(r"^```(?:json)?\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
 
