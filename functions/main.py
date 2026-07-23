@@ -8,7 +8,7 @@ from datetime import date, timedelta
 
 import firebase_admin
 from firebase_admin import firestore as fs
-from firebase_functions import https_fn
+from firebase_functions import https_fn, scheduler_fn
 from google.cloud.firestore_v1.base_query import FieldFilter
 from firebase_functions.params import SecretParam
 from langchain_core.messages import HumanMessage, AIMessage
@@ -549,6 +549,163 @@ def plan_workout_session(req: https_fn.CallableRequest) -> dict:
         )
 
     return {"plan": plan}
+
+
+# ─── Weekly AI report ────────────────────────────────────────────────────────
+
+def _top_completed_set(exercise: dict):
+    tops = [
+        st.get("weight_kg") or 0
+        for st in (exercise.get("sets") or [])
+        if st.get("done")
+    ]
+    return max(tops) if tops else None
+
+
+def _week_stats(uid: str, db) -> dict:
+    """Accurate, locally computed numbers for the last 7 days (+ previous 7 for comparison)."""
+    today = date.today()
+    week_start = today - timedelta(days=6)
+    prev_start = today - timedelta(days=13)
+
+    logs = []
+    day = week_start
+    while day <= today:
+        snap = db.document(f"users/{uid}/logs/{day.isoformat()}").get()
+        if snap.exists:
+            data = snap.to_dict() or {}
+            data["date"] = day.isoformat()
+            logs.append(data)
+        day += timedelta(days=1)
+
+    weights = [(l["date"], l["weight_kg"]) for l in logs if l.get("weight_kg")]
+    energies = [l["energy"] for l in logs if l.get("energy")]
+
+    sessions_snap = (
+        db.collection(f"users/{uid}/workout_sessions")
+        .where(filter=FieldFilter("date", ">=", prev_start.isoformat()))
+        .get()
+    )
+    completed = [
+        s.to_dict() for s in sessions_snap
+        if (s.to_dict() or {}).get("status") == "completed"
+    ]
+    this_week = [s for s in completed if s.get("date", "") >= week_start.isoformat()]
+    prev_week = [s for s in completed if s.get("date", "") < week_start.isoformat()]
+
+    def volume(sessions):
+        return sum(s.get("total_volume_kg") or 0 for s in sessions)
+
+    this_vol, prev_vol = volume(this_week), volume(prev_week)
+
+    return {
+        "week_start": week_start.isoformat(),
+        "week_end": today.isoformat(),
+        "sessions": len(this_week),
+        "routines_done": sorted({s.get("routine_name") or "?" for s in this_week}),
+        "total_volume_kg": round(this_vol),
+        "prev_volume_kg": round(prev_vol),
+        "volume_change_pct": round((this_vol - prev_vol) / prev_vol * 100) if prev_vol else None,
+        "weight_start_kg": weights[0][1] if weights else None,
+        "weight_end_kg": weights[-1][1] if weights else None,
+        "weight_delta_kg": round(weights[-1][1] - weights[0][1], 1) if len(weights) >= 2 else None,
+        "avg_energy": round(sum(energies) / len(energies), 1) if energies else None,
+        "session_details": [
+            {
+                "date": s.get("date"),
+                "routine": s.get("routine_name"),
+                "volume_kg": s.get("total_volume_kg"),
+                "top_sets": {
+                    e.get("name"): _top_completed_set(e)
+                    for e in (s.get("exercises") or [])
+                },
+            }
+            for s in this_week
+        ],
+    }
+
+
+def _generate_weekly_report(uid: str, db, stats: dict | None = None) -> dict:
+    """Compute the week's stats, ask Gemini for the narrative, store and return the report."""
+    profile_snap = db.document(f"users/{uid}/profile/data").get()
+    profile = profile_snap.to_dict() if profile_snap.exists else {}
+    language = profile.get("response_language") or "en"
+
+    if stats is None:
+        stats = _week_stats(uid, db)
+
+    prompt = (
+        "You are the user's strength & health coach writing their weekly report.\n\n"
+        f"User profile:\n{_profile_summary(profile)}\n\n"
+        f"This week's data (locally computed — treat as accurate):\n"
+        f"{json.dumps(stats, ensure_ascii=False)}\n\n"
+        "Return ONLY a valid JSON object — no markdown — like:\n"
+        '{"headline":"Strong week — volume up 8%",'
+        '"summary":"2-3 sentences interpreting the week: training, weight trend, energy.",'
+        '"wins":["max 3 short bullets"],'
+        '"focus_next_week":["max 3 short, actionable bullets"]}\n'
+        "Rules:\n"
+        "- Base every claim strictly on the provided data; never invent numbers.\n"
+        "- Compare top set weights across session_details to spot lifts that went up.\n"
+        "- If there were no sessions this week, be encouraging and make next week's plan concrete.\n"
+        "- Mention weight change only if weight_delta_kg is present.\n"
+        f"- Write everything in language: {language}.\n"
+    )
+
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        google_api_key=GEMINI_API_KEY.value,
+    )
+    response = _invoke_llm(llm, [HumanMessage(content=prompt)])
+    narrative = _extract_json(response.content)
+    if not isinstance(narrative, dict):
+        narrative = {}
+
+    report = {
+        "week_start": stats["week_start"],
+        "week_end": stats["week_end"],
+        "headline": narrative.get("headline") or "Your week in review",
+        "summary": narrative.get("summary") or "",
+        "wins": narrative.get("wins") or [],
+        "focus_next_week": narrative.get("focus_next_week") or [],
+        "stats": {k: v for k, v in stats.items() if k != "session_details"},
+    }
+    db.collection(f"users/{uid}/weekly_reports").add(
+        {**report, "created_at": fs.SERVER_TIMESTAMP}
+    )
+    return report
+
+
+@https_fn.on_call(secrets=[GEMINI_API_KEY])
+def generate_weekly_report(req: https_fn.CallableRequest) -> dict:
+    """On-demand weekly report (the cron below also writes one every Sunday)."""
+    if req.auth is None:
+        raise https_fn.HttpsError(
+            code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
+            message="Authentication required.",
+        )
+    return {"report": _generate_weekly_report(req.auth.uid, fs.client())}
+
+
+@scheduler_fn.on_schedule(schedule="every sunday 19:00", secrets=[GEMINI_API_KEY])
+def weekly_report_cron(event: scheduler_fn.ScheduledEvent) -> None:
+    """Sunday-evening report for every approved user with activity this week."""
+    db = fs.client()
+    users = (
+        db.collection("user_status")
+        .where(filter=FieldFilter("status", "==", "approved"))
+        .get()
+    )
+    for user in users:
+        uid = user.id
+        try:
+            stats = _week_stats(uid, db)
+            # Skip silent weeks — no training and no logs means nothing to report
+            if not stats["sessions"] and stats["weight_delta_kg"] is None and stats["avg_energy"] is None:
+                continue
+            _generate_weekly_report(uid, db, stats)
+        except Exception:
+            continue  # one user's failure must not break the batch
 
 
 # ─── extract_meal_plan_content ────────────────────────────────────────────────

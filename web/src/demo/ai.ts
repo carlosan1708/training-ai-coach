@@ -5,8 +5,9 @@
  */
 import type { ExerciseLogEntry } from '../types/log';
 import type { GeneratedRoutine, RoutineExercise, SessionPlan, SessionSet } from '../types/routine';
+import type { WeeklyReport } from '../types/report';
 import { topSetWeight, doneSets } from '../lib/workout';
-import { DB_KEY } from './db';
+import { DB_KEY, getRecentLogs, getSessionsSince, saveWeeklyReport } from './db';
 import { LIB } from './seed';
 
 // ── Chat ────────────────────────────────────────────────────────────────────
@@ -172,6 +173,80 @@ export const planWorkoutSession = (
       `I'll take it from there next session.`;
 
   return { plan: { insight, exercises } };
+};
+
+// ── Weekly report (computed from the demo data) ─────────────────────────────
+
+const isoDaysAgo = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().split('T')[0];
+};
+
+export const generateWeeklyReport = (): { report: WeeklyReport } => {
+  const weekStart = isoDaysAgo(6);
+  const prevStart = isoDaysAgo(13);
+
+  const thisWeek = getSessionsSince(weekStart);
+  const prevWeek = getSessionsSince(prevStart).filter((s) => s.date < weekStart);
+  const volume = (ss: typeof thisWeek) => ss.reduce((sum, s) => sum + (s.total_volume_kg ?? 0), 0);
+  const thisVol = Math.round(volume(thisWeek));
+  const prevVol = Math.round(volume(prevWeek));
+  const volChange = prevVol ? Math.round(((thisVol - prevVol) / prevVol) * 100) : null;
+
+  const weekLogs = getRecentLogs(7).filter((l) => l.weight_kg != null);
+  const wStart = weekLogs[0]?.weight_kg ?? null;
+  const wEnd = weekLogs[weekLogs.length - 1]?.weight_kg ?? null;
+  const delta = wStart != null && wEnd != null ? Math.round((wEnd - wStart) * 10) / 10 : null;
+  const energies = getRecentLogs(7).filter((l) => l.energy);
+  const avgEnergy = energies.length
+    ? Math.round((energies.reduce((a, l) => a + l.energy, 0) / energies.length) * 10) / 10
+    : null;
+
+  const report: WeeklyReport = {
+    week_start: weekStart,
+    week_end: isoDaysAgo(0),
+    headline:
+      thisWeek.length > 0
+        ? `Strong week — ${thisWeek.length} session${thisWeek.length > 1 ? 's' : ''}${volChange != null ? `, volume ${volChange >= 0 ? 'up' : 'down'} ${Math.abs(volChange)}%` : ''}`
+        : 'A quiet week — let’s restart',
+    summary:
+      thisWeek.length > 0
+        ? `You completed ${thisWeek.length} workout${thisWeek.length > 1 ? 's' : ''} and moved ${thisVol.toLocaleString()} kg in total${volChange != null ? ` (${volChange >= 0 ? '+' : ''}${volChange}% vs last week)` : ''}. ` +
+          `${delta != null ? `Body weight went from ${wStart} kg to ${wEnd} kg (${delta >= 0 ? '+' : ''}${delta} kg) — right on plan for a lean recomposition. ` : ''}` +
+          `Energy averaged ${avgEnergy ?? '—'}/5, so recovery is keeping up with the load.`
+        : 'No sessions were logged this week. Pick your favorite routine and schedule the first session — momentum beats motivation.',
+    wins:
+      thisWeek.length > 0
+        ? [
+            'Every planned set completed — 100% adherence',
+            volChange != null && volChange > 0 ? `Training volume up ${volChange}% week over week` : 'Training volume held steady',
+            'Bench press top set climbed again (+2.5 kg)',
+          ]
+        : ['Your routines and history are ready to pick back up'],
+    focus_next_week: [
+      'Add one rep to the lat pulldown before adding weight',
+      'Keep protein at ~180 g, especially on rest days',
+      `Aim for ${Math.max(thisWeek.length, 3)} sessions again`,
+    ],
+    stats: {
+      week_start: weekStart,
+      week_end: isoDaysAgo(0),
+      sessions: thisWeek.length,
+      routines_done: [...new Set(thisWeek.map((s) => s.routine_name))],
+      total_volume_kg: thisVol,
+      prev_volume_kg: prevVol,
+      volume_change_pct: volChange,
+      weight_start_kg: wStart,
+      weight_end_kg: wEnd,
+      weight_delta_kg: delta,
+      avg_energy: avgEnergy,
+    },
+    created_at: Date.now(),
+  };
+
+  saveWeeklyReport(report);
+  return { report };
 };
 
 // ── Document / photo parsers ────────────────────────────────────────────────

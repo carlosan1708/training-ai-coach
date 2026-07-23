@@ -9,6 +9,7 @@ import { isDemoMode, demoDelay } from '../demo';
 import * as demoAi from '../demo/ai';
 import type { ExerciseLogEntry, BodyCompositionReport } from '../types/log';
 import type { GeneratedRoutine, RoutineExercise, SessionPlan } from '../types/routine';
+import type { WeeklyReport } from '../types/report';
 
 type Result<T> = Promise<{ data: T }>;
 
@@ -58,4 +59,9 @@ export interface PlanSessionRequest {
 export const planWorkoutSessionFn = call<PlanSessionRequest, { plan: SessionPlan }>(
   'plan_workout_session',
   ({ routine, recentSessions }) => demoAi.planWorkoutSession(routine, recentSessions)
+);
+
+export const generateWeeklyReportFn = call<Record<string, never>, { report: WeeklyReport }>(
+  'generate_weekly_report',
+  () => demoAi.generateWeeklyReport()
 );

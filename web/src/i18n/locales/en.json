@@ -337,5 +337,30 @@
   "demo": {
     "banner": "Demo mode — sample data stored on this device only. AI replies are simulated.",
     "exit": "Exit demo"
+  },
+  "report": {
+    "title": "Weekly AI Report",
+    "generate": "Generate report",
+    "refresh": "Regenerate",
+    "generating": "Analyzing your week...",
+    "empty": "Get an AI summary of your training week — volume, weight trend, wins, and what to focus on next.",
+    "week": "{{start}} → {{end}}",
+    "sessions": "{{count}} sessions",
+    "volume": "{{kg}} kg lifted",
+    "wins": "WINS",
+    "focus": "NEXT WEEK",
+    "error": "Could not generate the report. Please try again."
+  },
+  "forecast": {
+    "title": "Goal Forecast",
+    "trend": "{{kg}} kg/week",
+    "current": "Current",
+    "goal": "Goal",
+    "eta": "At this rate you'll reach {{goal}} kg around {{date}}.",
+    "reached": "You've reached your goal weight — time to set a new target? 🎉",
+    "stalled": "Your weight has been flat for a while. If you expected it to move, ask the coach to review your calories.",
+    "movingAway": "You're trending away from your goal ({{kg}} kg/week). Worth a check-in with the coach.",
+    "insufficient": "Log your weight a few more days to unlock a forecast.",
+    "noGoal": "Set a goal weight in your profile to see a forecast."
   }
 }

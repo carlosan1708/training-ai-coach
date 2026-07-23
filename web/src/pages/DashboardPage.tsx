@@ -15,6 +15,8 @@ import ChatIcon from '@mui/icons-material/Chat';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import { useProfileStore } from '../store/profileStore';
 import { useDailyLog } from '../hooks/useDailyLog';
+import WeeklyReportCard from '../components/dashboard/WeeklyReportCard';
+import GoalForecastCard from '../components/dashboard/GoalForecastCard';
 
 const today = new Date().toISOString().split('T')[0];
 
@@ -98,6 +100,9 @@ export default function DashboardPage() {
             <Typography color="text.secondary">{t('dashboard.noData')}</Typography>
           </Box>
         )}
+
+        <GoalForecastCard />
+        <WeeklyReportCard />
 
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
           <Button
