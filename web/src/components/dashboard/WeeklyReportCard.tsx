@@ -54,13 +54,18 @@ export default function WeeklyReportCard() {
 
   // On login: show the latest report, and refresh it automatically when it's
   // missing or covers a week that ended 7+ days ago.
+  // Keyed on the uid, not the User object: firebase hands out a new User
+  // instance on every token refresh, which re-ran this effect mid-flight and
+  // cancelled a request that was about to succeed.
+  const uid = currentUser?.uid;
+
   useEffect(() => {
-    if (!currentUser) return;
+    if (!uid) return;
     let cancelled = false;
     (async () => {
       let latest: WeeklyReport | null = null;
       try {
-        latest = await getLatestWeeklyReport(currentUser.uid);
+        latest = await getLatestWeeklyReport(uid);
       } catch {
         // ignore — we'll just offer manual generation
       }
@@ -69,19 +74,24 @@ export default function WeeklyReportCard() {
       setLoading(false);
 
       const stale = !latest || latest.week_end <= isoDaysAgo(7);
-      if (!stale) return;
+      if (!stale) {
+        setGenerating(false);
+        return;
+      }
       setGenerating(true);
       try {
         const result = await generateWeeklyReportFn({});
         if (!cancelled) setReport(result.data.report);
       } catch {
-        // silent — the manual Generate button stays available
+        if (!cancelled) setError(t('report.error'));
       } finally {
-        if (!cancelled) setGenerating(false);
+        // Unconditional: bailing out here on `cancelled` left the card stuck
+        // on "Analyzing your week..." forever, even after the call succeeded.
+        setGenerating(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [currentUser]);
+  }, [uid, t]);
 
   if (loading) return null;
 
