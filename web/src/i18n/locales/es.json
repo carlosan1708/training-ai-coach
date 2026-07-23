@@ -6,7 +6,9 @@
     "headline": "Tu Entrenador de Salud Personal",
     "sub": "Planes de comida con IA, asesoramiento de ejercicio y seguimiento de salud — todo en un lugar.",
     "signIn": "Iniciar Sesión",
-    "createAccount": "Crear Cuenta"
+    "createAccount": "Crear Cuenta",
+    "tryDemo": "Probar la demo",
+    "demoHint": "Sin cuenta — explora con datos de ejemplo"
   },
   "auth": {
     "email": "Correo electrónico",
@@ -331,5 +333,9 @@
     "target": "Objetivo",
     "lastTime": "Última vez",
     "addSet": "Añadir serie"
+  },
+  "demo": {
+    "banner": "Modo demo — datos de ejemplo guardados solo en este dispositivo. Las respuestas de IA son simuladas.",
+    "exit": "Salir de la demo"
   }
 }

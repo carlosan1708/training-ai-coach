@@ -24,18 +24,12 @@ import AddIcon from '@mui/icons-material/Add';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import DeleteIcon from '@mui/icons-material/Delete';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '../firebase/config';
 import { useAuthStore } from '../store/authStore';
 import { getRoutines, addRoutine, deleteRoutine } from '../firebase/firestore';
+import { generateRoutineFn } from '../firebase/callables';
 import { loadExerciseLibrary, matchExercise } from '../lib/exerciseLibrary';
 import ExerciseGif from '../components/ExerciseGif';
-import type { GeneratedRoutine, Routine, RoutineExercise } from '../types/routine';
-
-const generateRoutineFn = httpsCallable<
-  { focus: string; notes?: string },
-  { routine: GeneratedRoutine }
->(functions, 'generate_routine');
+import type { Routine, RoutineExercise } from '../types/routine';
 
 export default function RoutinesPage() {
   const { t } = useTranslation();

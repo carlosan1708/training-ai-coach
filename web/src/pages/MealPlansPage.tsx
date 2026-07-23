@@ -30,18 +30,11 @@ import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import RestaurantMenuIcon from '@mui/icons-material/RestaurantMenu';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import { deleteDoc } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
 import mammoth from 'mammoth';
-import { functions } from '../firebase/config';
 import { useAuthStore } from '../store/authStore';
 import { getMealPlans, addMealPlan, setActiveMealPlan, deleteMealPlan, updateMealPlan, type MealPlanDoc } from '../firebase/firestore';
 import { uploadMealPlan, deleteMealPlanFile } from '../firebase/storage';
-
-const extractMealPlanContent = httpsCallable<
-  { imageData?: string; mimeType?: string; textContent?: string },
-  { content: Record<string, unknown> }
->(functions, 'extract_meal_plan_content');
+import { extractMealPlanContentFn as extractMealPlanContent } from '../firebase/callables';
 
 const fileIcon = (type: string) => {
   if (type === 'pdf') return <PictureAsPdfIcon color="error" />;
@@ -308,7 +301,7 @@ export default function MealPlansPage() {
     setActionId(plan.id);
     try {
       await deleteMealPlanFile(plan.storage_path);
-      await deleteDoc(deleteMealPlan(currentUser.uid, plan.id));
+      await deleteMealPlan(currentUser.uid, plan.id);
       await load();
     } catch {
       setError(t('mealPlans.deleteError'));
