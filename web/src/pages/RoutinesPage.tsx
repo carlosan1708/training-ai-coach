@@ -178,8 +178,8 @@ export default function RoutinesPage() {
         )}
 
         {routines.map((routine) => (
-          <Card key={routine.id} variant="outlined">
-            <CardActionArea onClick={() => navigate(`/routines/${routine.id}`)}>
+          <Card key={routine.id} variant="outlined" sx={{ display: 'flex', alignItems: 'center' }}>
+            <CardActionArea onClick={() => navigate(`/routines/${routine.id}`)} sx={{ flex: 1 }}>
               <CardContent>
                 <Stack direction="row" alignItems="center" spacing={2}>
                   <Stack direction="row" spacing={-1.5}>
@@ -208,17 +208,17 @@ export default function RoutinesPage() {
                       )}
                     </Stack>
                   </Box>
-                  <IconButton
-                    size="small"
-                    color="error"
-                    onClick={(e) => { e.stopPropagation(); handleDelete(routine); }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
                 </Stack>
               </CardContent>
             </CardActionArea>
+            <IconButton
+              size="small"
+              color="error"
+              onClick={() => handleDelete(routine)}
+              sx={{ mx: 1 }}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
           </Card>
         ))}
       </Stack>

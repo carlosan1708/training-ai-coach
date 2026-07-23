@@ -31,7 +31,7 @@ Training AI Coach is a **serverless, mobile-first web app** that combines a mult
 - 🏋️ **Workout routines with animated exercise demos** — build routines from a searchable library of **870+ exercises with demo images**, or let the AI generate one from your profile (goal, equipment, session length). Custom GIF URLs supported per exercise.
 - 🤖 **AI session planning (progressive overload)** — every time you start a workout, the AI looks at your recent sessions and daily readiness (energy, weight, notes) and adjusts **weight, reps, and sets per exercise**, with a coaching insight for the day.
 - 📈 **Per-routine progress tracking** — log every set (weight × reps) with autosave, see *last time* numbers next to today's targets, and charts of top-set weight and volume per exercise. If a lift hasn't moved in **2+ weeks**, the AI flags the plateau and changes strategy (deload, new rep scheme, or a variation).
-- 📰 **Weekly AI report** — every Sunday (or on demand) the coach summarizes your week: sessions, total volume vs. last week, weight trend, energy, wins, and what to focus on next.
+- 📰 **Weekly AI report** — when you open the app and your last report is a week old (or on demand), the coach summarizes your week: sessions, total volume vs. last week, weight trend, energy, wins, and what to focus on next.
 - 🎯 **Goal forecast** — a regression over your recent weigh-ins projects when you'll hit your goal weight ("at this rate: ~August 15") and warns when your weight stalls or trends the wrong way.
 - 🍽️ **Meal plan intelligence** — upload a PDF/DOC/image meal plan (English or Spanish); Gemini extracts meals, macros, and rules, and the diet agent answers with your plan as context.
 - ⚖️ **Body composition parsing** — screenshot from Fitdays/InBody/Tanita/Withings or an ISAK anthropometry report → structured data + AI summary.
@@ -172,22 +172,22 @@ users/{uid}/chat_sessions/{sessionId} chat history
 
 ## 🚀 Getting started
 
-### Instant demo (no backend)
+### Instant demo (no backend, no config)
 
 ```bash
-cd web && npm install
-cat > .env.local <<'EOF'
-VITE_FIREBASE_API_KEY=demo
-VITE_FIREBASE_AUTH_DOMAIN=demo.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=demo
-VITE_FIREBASE_STORAGE_BUCKET=demo.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=0
-VITE_FIREBASE_APP_ID=demo
-EOF
-npm run dev
+cd web && npm install && npm run dev
 ```
 
-Open http://localhost:5173 and click **Try the demo**. Everything — routines, AI session planning, chat — works offline with sample data.
+Open http://localhost:5173 and click **Try the demo**. Everything — routines, AI session planning, weekly report, chat — works offline with sample data. No Firebase project, `.env.local`, or Gemini key required.
+
+### 🧪 E2E tests (Playwright)
+
+```bash
+cd web && npx playwright install chromium   # first time only
+npx playwright test
+```
+
+16 end-to-end tests drive the app through demo mode like a real user — entering the demo, seeded dashboard, goal forecast, auto-generated weekly report, routine create/edit/delete, AI routine generation, an AI-planned workout session logged set by set and mirrored into the daily log, chat with context, and exiting the demo. No backend needed.
 
 ### Full deployment
 

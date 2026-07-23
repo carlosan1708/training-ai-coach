@@ -8,7 +8,7 @@ from datetime import date, timedelta
 
 import firebase_admin
 from firebase_admin import firestore as fs
-from firebase_functions import https_fn, scheduler_fn
+from firebase_functions import https_fn
 from google.cloud.firestore_v1.base_query import FieldFilter
 from firebase_functions.params import SecretParam
 from langchain_core.messages import HumanMessage, AIMessage
@@ -678,34 +678,13 @@ def _generate_weekly_report(uid: str, db, stats: dict | None = None) -> dict:
 
 @https_fn.on_call(secrets=[GEMINI_API_KEY])
 def generate_weekly_report(req: https_fn.CallableRequest) -> dict:
-    """On-demand weekly report (the cron below also writes one every Sunday)."""
+    """Weekly report — the client calls this on login when the last report is stale."""
     if req.auth is None:
         raise https_fn.HttpsError(
             code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
             message="Authentication required.",
         )
     return {"report": _generate_weekly_report(req.auth.uid, fs.client())}
-
-
-@scheduler_fn.on_schedule(schedule="every sunday 19:00", secrets=[GEMINI_API_KEY])
-def weekly_report_cron(event: scheduler_fn.ScheduledEvent) -> None:
-    """Sunday-evening report for every approved user with activity this week."""
-    db = fs.client()
-    users = (
-        db.collection("user_status")
-        .where(filter=FieldFilter("status", "==", "approved"))
-        .get()
-    )
-    for user in users:
-        uid = user.id
-        try:
-            stats = _week_stats(uid, db)
-            # Skip silent weeks — no training and no logs means nothing to report
-            if not stats["sessions"] and stats["weight_delta_kg"] is None and stats["avg_energy"] is None:
-                continue
-            _generate_weekly_report(uid, db, stats)
-        except Exception:
-            continue  # one user's failure must not break the batch
 
 
 # ─── extract_meal_plan_content ────────────────────────────────────────────────
