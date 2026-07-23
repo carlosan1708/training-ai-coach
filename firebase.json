@@ -11,6 +11,22 @@
         "source": "**",
         "destination": "/index.html"
       }
+    ],
+    "headers": [
+      {
+        "comment": "The HTML shell must revalidate: the default max-age=3600 left returning users on a cached shell pointing at a hashed bundle the new deploy no longer serves — a blank page for up to an hour. Matches '**' because every route rewrites to index.html, so '/index.html' alone never matches a request for '/' or '/routines'. The /assets/** rule below is listed later and so wins for hashed files.",
+        "source": "**",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      },
+      {
+        "comment": "Asset filenames are content-hashed by vite, so they can be cached forever.",
+        "source": "/assets/**",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        ]
+      }
     ]
   },
   "functions": {
