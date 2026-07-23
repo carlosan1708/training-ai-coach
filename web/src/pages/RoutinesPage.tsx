@@ -214,6 +214,7 @@ export default function RoutinesPage() {
             <IconButton
               size="small"
               color="error"
+              aria-label={t('common.delete')}
               onClick={() => handleDelete(routine)}
               sx={{ mx: 1 }}
             >

@@ -246,7 +246,7 @@ export default function RoutineDetailPage() {
 
         {/* ── Header ── */}
         <Stack direction="row" alignItems="center" spacing={1}>
-          <IconButton onClick={() => navigate('/routines')}><ArrowBackIcon /></IconButton>
+          <IconButton aria-label={t('common.back')} onClick={() => navigate('/routines')}><ArrowBackIcon /></IconButton>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="h6" fontWeight={700} noWrap>{routine.name}</Typography>
             {routine.description && (
@@ -255,6 +255,7 @@ export default function RoutineDetailPage() {
           </Box>
           <IconButton
             size="small"
+            aria-label={t('routines.editRoutine')}
             onClick={() => { setMetaName(routine.name); setMetaDesc(routine.description ?? ''); setMetaOpen(true); }}
           >
             <EditIcon fontSize="small" />
@@ -309,15 +310,15 @@ export default function RoutineDetailPage() {
                   )}
                 </Box>
                 <Stack>
-                  <IconButton size="small" onClick={() => moveExercise(idx, -1)} disabled={idx === 0}>
+                  <IconButton aria-label={t('common.moveUp')} size="small" onClick={() => moveExercise(idx, -1)} disabled={idx === 0}>
                     <KeyboardArrowUpIcon fontSize="small" />
                   </IconButton>
-                  <IconButton size="small" onClick={() => moveExercise(idx, 1)} disabled={idx === routine.exercises.length - 1}>
+                  <IconButton aria-label={t('common.moveDown')} size="small" onClick={() => moveExercise(idx, 1)} disabled={idx === routine.exercises.length - 1}>
                     <KeyboardArrowDownIcon fontSize="small" />
                   </IconButton>
                 </Stack>
                 <Stack>
-                  <IconButton size="small" onClick={() => setEditIndex(idx)}>
+                  <IconButton aria-label={t('common.edit')} size="small" onClick={() => setEditIndex(idx)}>
                     <EditIcon fontSize="small" />
                   </IconButton>
                   <Tooltip title={t('exerciseLog.remove')}>
