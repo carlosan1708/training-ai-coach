@@ -32,11 +32,9 @@ export default function ChatPage() {
   const [error, setError] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Create or reuse session
-  useEffect(() => {
-    if (!currentUser || sessionId) return;
-    createChatSession(currentUser.uid).then(setSessionId);
-  }, [currentUser, sessionId, setSessionId]);
+  // The session is created lazily on the first message, not on mount: opening
+  // the chat and leaving used to leave an empty session document behind (one
+  // Firestore write per page view, and orphans cluttering the history).
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -44,7 +42,7 @@ export default function ChatPage() {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() || !currentUser || !sessionId || sending) return;
+    if (!input.trim() || !currentUser || sending) return;
     setError('');
 
     const userMsg: Message = {
@@ -59,8 +57,13 @@ export default function ChatPage() {
     setSending(true);
 
     try {
-      await appendMessage(currentUser.uid, sessionId, userMsg);
-      const result = await chatFn({ message: userMsg.content, sessionId });
+      let sid = sessionId;
+      if (!sid) {
+        sid = await createChatSession(currentUser.uid);
+        setSessionId(sid);
+      }
+      await appendMessage(currentUser.uid, sid, userMsg);
+      const result = await chatFn({ message: userMsg.content, sessionId: sid });
       const assistantMsg: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -68,7 +71,7 @@ export default function ChatPage() {
         timestamp: new Date().toISOString(),
       };
       addMessage(assistantMsg);
-      await appendMessage(currentUser.uid, sessionId, assistantMsg);
+      await appendMessage(currentUser.uid, sid, assistantMsg);
     } catch {
       setError(t('chat.errorSending'));
     } finally {
@@ -147,6 +150,7 @@ export default function ChatPage() {
               endAdornment: (
                 <InputAdornment position="end">
                   <IconButton
+                    aria-label={t('chat.send')}
                     onClick={handleSend}
                     disabled={!input.trim() || sending}
                     color="primary"
