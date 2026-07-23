@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import ChatIcon from '@mui/icons-material/Chat';
+import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import { useProfileStore } from '../store/profileStore';
 import { useDailyLog } from '../hooks/useDailyLog';
 
@@ -107,6 +108,16 @@ export default function DashboardPage() {
             fullWidth
           >
             {t('dashboard.logToday')}
+          </Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            size="large"
+            startIcon={<FitnessCenterIcon />}
+            onClick={() => navigate('/routines')}
+            fullWidth
+          >
+            {t('dashboard.startWorkout')}
           </Button>
           <Button
             variant="outlined"

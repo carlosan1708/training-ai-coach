@@ -13,6 +13,9 @@ import DashboardPage from '../pages/DashboardPage';
 import LogPage from '../pages/LogPage';
 import MealPlansPage from '../pages/MealPlansPage';
 import ChatPage from '../pages/ChatPage';
+import RoutinesPage from '../pages/RoutinesPage';
+import RoutineDetailPage from '../pages/RoutineDetailPage';
+import WorkoutSessionPage from '../pages/WorkoutSessionPage';
 
 const ADMIN_UID = import.meta.env.VITE_ADMIN_UID as string | undefined;
 
@@ -86,6 +89,9 @@ export default function AppRouter() {
         <Route element={<AppShell />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/log" element={<LogPage />} />
+          <Route path="/routines" element={<RoutinesPage />} />
+          <Route path="/routines/:routineId" element={<RoutineDetailPage />} />
+          <Route path="/routines/:routineId/session/:sessionId" element={<WorkoutSessionPage />} />
           <Route path="/plans" element={<MealPlansPage />} />
           <Route path="/chat" element={<ChatPage />} />
         </Route>

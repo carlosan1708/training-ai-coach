@@ -126,7 +126,8 @@
     "plans": "Planes de Comida",
     "progress": "Progreso",
     "settings": "Configuración",
-    "admin": "Admin"
+    "admin": "Admin",
+    "workouts": "Entrenos"
   },
   "dashboard": {
     "welcome": "¡Bienvenido, {{name}}!",
@@ -135,7 +136,8 @@
     "logToday": "Registrar Hoy",
     "openChat": "Preguntar al Coach IA",
     "adherence": "Adherencia Semanal",
-    "noData": "¡Sin datos aún — comienza registrando tu primera entrada!"
+    "noData": "¡Sin datos aún — comienza registrando tu primera entrada!",
+    "startWorkout": "Empezar Entreno"
   },
   "dailyLog": {
     "title": "Registro Diario",
@@ -285,5 +287,49 @@
     "delete": "Eliminar",
     "optional": "Opcional",
     "error": "Algo salió mal."
+  },
+  "routines": {
+    "title": "Rutinas de Entrenamiento",
+    "generateAi": "Generar con IA",
+    "createManual": "Nueva Rutina",
+    "empty": "Aún no hay rutinas. Genera una con IA o crea la tuya.",
+    "exerciseCount": "{{count}} ejercicios",
+    "sessionCount": "{{count}} sesiones",
+    "lastDone": "Última: {{date}}",
+    "deleteConfirm": "¿Eliminar la rutina \"{{name}}\"? Las sesiones pasadas se conservan.",
+    "generateHint": "El coach de IA creará una rutina según tu perfil (objetivo, equipo, duración). Opcionalmente dile en qué enfocarse.",
+    "focus": "Enfoque",
+    "focusPlaceholder": "ej. fuerza de tren superior, piernas, cuerpo completo...",
+    "notesPlaceholder": "ej. hombro sensible, hoy sin barra...",
+    "generate": "Generar",
+    "generating": "Generando...",
+    "generateError": "No se pudo generar la rutina. Inténtalo de nuevo.",
+    "routineName": "Nombre de la rutina",
+    "untitled": "Mi Rutina",
+    "notFound": "Rutina no encontrada.",
+    "editRoutine": "Editar rutina",
+    "description": "Descripción",
+    "addExercise": "Añadir ejercicio",
+    "searchExercises": "Busca entre 870+ ejercicios...",
+    "addCustom": "Añadir ejercicio personalizado",
+    "libraryError": "Biblioteca de ejercicios no disponible — puedes añadir ejercicios personalizados.",
+    "customExercise": "Ejercicio personalizado",
+    "exerciseName": "Nombre del ejercicio",
+    "gifUrl": "URL del GIF",
+    "gifUrlHint": "Opcional: pega un enlace a un GIF de demostración",
+    "restSec": "Descanso (seg)",
+    "startSession": "Empezar Entrenamiento (ajustado por IA)",
+    "resumeSession": "Reanudar entrenamiento en curso",
+    "aiPlanning": "La IA está ajustando la sesión de hoy...",
+    "aiUnavailable": "Ajuste de IA no disponible — usando los objetivos de tu rutina para hoy.",
+    "progress": "Progreso",
+    "topSetKg": "Serie máxima (kg)",
+    "volumeKg": "Volumen (kg)",
+    "noChartData": "Completa una sesión con pesos para ver tu progreso aquí.",
+    "history": "Historial de sesiones",
+    "finishSession": "Terminar entrenamiento",
+    "target": "Objetivo",
+    "lastTime": "Última vez",
+    "addSet": "Añadir serie"
   }
 }

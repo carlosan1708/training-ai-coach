@@ -126,7 +126,8 @@
     "plans": "Meal Plans",
     "progress": "Progress",
     "settings": "Settings",
-    "admin": "Admin"
+    "admin": "Admin",
+    "workouts": "Workouts"
   },
   "dashboard": {
     "welcome": "Welcome, {{name}}!",
@@ -135,7 +136,8 @@
     "logToday": "Log Today",
     "openChat": "Ask AI Coach",
     "adherence": "Weekly Adherence",
-    "noData": "No data yet — start by logging your first entry!"
+    "noData": "No data yet — start by logging your first entry!",
+    "startWorkout": "Start Workout"
   },
   "dailyLog": {
     "title": "Daily Log",
@@ -285,5 +287,49 @@
     "delete": "Delete",
     "optional": "Optional",
     "error": "Something went wrong."
+  },
+  "routines": {
+    "title": "Workout Routines",
+    "generateAi": "Generate with AI",
+    "createManual": "New Routine",
+    "empty": "No routines yet. Generate one with AI or build your own.",
+    "exerciseCount": "{{count}} exercises",
+    "sessionCount": "{{count}} sessions",
+    "lastDone": "Last: {{date}}",
+    "deleteConfirm": "Delete routine \"{{name}}\"? Past sessions are kept.",
+    "generateHint": "The AI coach will build a routine from your profile (goal, equipment, session length). Optionally tell it what to focus on.",
+    "focus": "Focus",
+    "focusPlaceholder": "e.g. upper body strength, legs, full body...",
+    "notesPlaceholder": "e.g. shoulder feels tender, no barbell today...",
+    "generate": "Generate",
+    "generating": "Generating...",
+    "generateError": "Could not generate a routine. Please try again.",
+    "routineName": "Routine name",
+    "untitled": "My Routine",
+    "notFound": "Routine not found.",
+    "editRoutine": "Edit routine",
+    "description": "Description",
+    "addExercise": "Add exercise",
+    "searchExercises": "Search 870+ exercises...",
+    "addCustom": "Add custom exercise",
+    "libraryError": "Exercise library unavailable — you can still add custom exercises.",
+    "customExercise": "Custom exercise",
+    "exerciseName": "Exercise name",
+    "gifUrl": "GIF URL",
+    "gifUrlHint": "Optional: paste a link to an animated demo GIF",
+    "restSec": "Rest (sec)",
+    "startSession": "Start Workout (AI-adjusted)",
+    "resumeSession": "Resume workout in progress",
+    "aiPlanning": "AI is adjusting today's session...",
+    "aiUnavailable": "AI adjustment unavailable — using your routine targets for today.",
+    "progress": "Progress",
+    "topSetKg": "Top set (kg)",
+    "volumeKg": "Volume (kg)",
+    "noChartData": "Complete a session with weights to see progress here.",
+    "history": "Session history",
+    "finishSession": "Finish workout",
+    "target": "Target",
+    "lastTime": "Last time",
+    "addSet": "Add set"
   }
 }

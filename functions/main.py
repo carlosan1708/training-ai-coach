@@ -326,6 +326,224 @@ def parse_body_composition_report(req: https_fn.CallableRequest) -> dict:
     return {"report": report, "summary": summary}
 
 
+# ─── Workout routine helpers ─────────────────────────────────────────────────
+
+def _profile_summary(profile: dict) -> str:
+    """Compact one-block summary of the user profile for workout prompts."""
+    fields = [
+        ("Name", profile.get("name")),
+        ("Age", profile.get("age")),
+        ("Sex", profile.get("biological_sex")),
+        ("Height cm", profile.get("height_cm")),
+        ("Goal weight kg", profile.get("goal_weight_kg")),
+        ("Training goal", profile.get("training_goal")),
+        ("Equipment", profile.get("equipment")),
+        ("Training days/week", profile.get("training_days_per_week")),
+        ("Session length min", profile.get("session_length_min")),
+        ("Movement restrictions", profile.get("movement_restrictions")),
+        ("Health notes", profile.get("health_notes")),
+    ]
+    lines = [f"- {k}: {v}" for k, v in fields if v not in (None, "", [])]
+    return "\n".join(lines) if lines else "- (no profile data)"
+
+
+def _extract_json(text: str):
+    """Strip code fences and parse the first JSON object/array in the text."""
+    text = text.strip()
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
+    match = re.search(r"[\[{].*[\]}]", text, re.DOTALL)
+    if not match:
+        return None
+    try:
+        return json.loads(match.group())
+    except json.JSONDecodeError:
+        return None
+
+
+# ─── generate_routine ────────────────────────────────────────────────────────
+
+@https_fn.on_call(secrets=[GEMINI_API_KEY])
+def generate_routine(req: https_fn.CallableRequest) -> dict:
+    """
+    Generates a structured workout routine from the user's profile plus an
+    optional focus/notes prompt. Returns a routine the client can save.
+    """
+    if req.auth is None:
+        raise https_fn.HttpsError(
+            code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
+            message="Authentication required.",
+        )
+
+    uid = req.auth.uid
+    data = req.data or {}
+    focus: str = (data.get("focus") or "").strip()
+    notes: str = (data.get("notes") or "").strip()
+
+    db = fs.client()
+    profile_snap = db.document(f"users/{uid}/profile/data").get()
+    profile = profile_snap.to_dict() if profile_snap.exists else {}
+
+    response_language = profile.get("response_language") or "en"
+
+    prompt = (
+        "You are an expert strength & conditioning coach. Design ONE workout "
+        "routine (a single session template the user will repeat) for this user.\n\n"
+        f"User profile:\n{_profile_summary(profile)}\n\n"
+        f"Requested focus: {focus or 'coach decides based on profile'}\n"
+        f"Extra notes: {notes or 'none'}\n\n"
+        "Return ONLY a valid JSON object — no markdown, no explanation — like:\n"
+        '{"name":"Upper Body Strength A",'
+        '"description":"One short sentence describing the routine.",'
+        '"exercises":[{"name":"Barbell Bench Press","muscle_group":"chest",'
+        '"sets":4,"reps":8,"weight_kg":40,"rest_sec":90,'
+        '"notes":"short form cue or intensity guidance"}]}\n'
+        "Rules:\n"
+        "- 5 to 8 exercises, ordered compound-first.\n"
+        "- Use standard, widely-known English exercise names (e.g. 'Barbell Squat', "
+        "'Lat Pulldown', 'Dumbbell Shoulder Press') so they can be matched against "
+        "an exercise-demo database. Keep names in English even if other text is not.\n"
+        "- weight_kg is a conservative starting working weight; use 0 for "
+        "bodyweight exercises. If you cannot estimate, use null.\n"
+        "- Respect the user's equipment, restrictions, and session length.\n"
+        f"- Write 'description' and 'notes' in language: {response_language}.\n"
+    )
+
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        google_api_key=GEMINI_API_KEY.value,
+    )
+    response = _invoke_llm(llm, [HumanMessage(content=prompt)])
+    routine = _extract_json(response.content)
+
+    if not isinstance(routine, dict) or not routine.get("exercises"):
+        raise https_fn.HttpsError(
+            code=https_fn.FunctionsErrorCode.INTERNAL,
+            message="Could not generate a routine. Please try again.",
+        )
+
+    return {"routine": routine}
+
+
+# ─── plan_workout_session ────────────────────────────────────────────────────
+
+@https_fn.on_call(secrets=[GEMINI_API_KEY])
+def plan_workout_session(req: https_fn.CallableRequest) -> dict:
+    """
+    Given a routine and its recent session history, returns AI-adjusted
+    targets (weight / reps / sets) for today's session, applying progressive
+    overload and factoring in recent readiness (energy, weight logs).
+    """
+    if req.auth is None:
+        raise https_fn.HttpsError(
+            code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
+            message="Authentication required.",
+        )
+
+    uid = req.auth.uid
+    data = req.data or {}
+    routine: dict = data.get("routine") or {}
+    recent_sessions: list = data.get("recentSessions") or []
+
+    if not routine.get("exercises"):
+        raise https_fn.HttpsError(
+            code=https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            message="routine with exercises is required.",
+        )
+
+    db = fs.client()
+    profile_snap = db.document(f"users/{uid}/profile/data").get()
+    profile = profile_snap.to_dict() if profile_snap.exists else {}
+    response_language = profile.get("response_language") or "en"
+
+    # Recent readiness signals: energy / weight / notes from the last 7 days
+    readiness = []
+    try:
+        today = date.today()
+        for i in range(7):
+            day = (today - timedelta(days=i)).isoformat()
+            snap = db.document(f"users/{uid}/logs/{day}").get()
+            if snap.exists:
+                log = snap.to_dict() or {}
+                entry = {"date": day}
+                for key in ("energy", "weight_kg", "notes"):
+                    if log.get(key) not in (None, ""):
+                        entry[key] = log[key]
+                if len(entry) > 1:
+                    readiness.append(entry)
+    except Exception:
+        pass  # non-fatal — planning works without readiness data
+
+    # Compact the session history: keep only what the coach needs
+    history = []
+    for s in recent_sessions[:4]:
+        history.append({
+            "date": s.get("date"),
+            "exercises": [
+                {
+                    "name": e.get("name"),
+                    "sets": [
+                        {"reps": st.get("reps"), "weight_kg": st.get("weight_kg")}
+                        for st in (e.get("sets") or []) if st.get("done")
+                    ],
+                }
+                for e in (s.get("exercises") or [])
+            ],
+        })
+
+    routine_exercises = [
+        {
+            "name": e.get("name"),
+            "sets": e.get("sets"),
+            "reps": e.get("reps"),
+            "weight_kg": e.get("weight_kg"),
+        }
+        for e in routine["exercises"]
+    ]
+
+    prompt = (
+        "You are an expert strength coach planning TODAY's session for this user.\n\n"
+        f"User profile:\n{_profile_summary(profile)}\n\n"
+        f"Routine template:\n{json.dumps(routine_exercises, ensure_ascii=False)}\n\n"
+        f"Recent sessions of this routine (newest first, completed sets only):\n"
+        f"{json.dumps(history, ensure_ascii=False) if history else 'none — this is the first session'}\n\n"
+        f"Recent daily readiness logs (energy is 1-5):\n"
+        f"{json.dumps(readiness, ensure_ascii=False) if readiness else 'none'}\n\n"
+        "Apply progressive overload:\n"
+        "- If the user completed all target sets/reps last time, increase weight "
+        "(~2.5% upper body, ~5% lower body, minimum sensible plate jump) OR add a rep.\n"
+        "- If they missed reps, hold or slightly reduce the load.\n"
+        "- If recent energy is low (<=2) or notes mention fatigue/soreness/illness, "
+        "reduce volume or load and say why.\n"
+        "- For bodyweight/duration exercises progress reps or sets instead of weight.\n"
+        "- Round weights to practical increments (1.25 / 2.5 kg).\n\n"
+        "Return ONLY a valid JSON object — no markdown — like:\n"
+        '{"insight":"2-3 sentence coaching summary for today: overall readiness, '
+        'what changed vs last session and why, and one focus point.",'
+        '"exercises":[{"name":"Barbell Bench Press","sets":4,"reps":8,'
+        '"weight_kg":42.5,"change":"increase","note":"very short reason, max 10 words"}]}\n'
+        "Rules:\n"
+        "- Include EVERY exercise from the routine template, same names, same order.\n"
+        "- change must be one of: increase, hold, decrease.\n"
+        f"- Write 'insight' and 'note' in language: {response_language}.\n"
+    )
+
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        google_api_key=GEMINI_API_KEY.value,
+    )
+    response = _invoke_llm(llm, [HumanMessage(content=prompt)])
+    plan = _extract_json(response.content)
+
+    if not isinstance(plan, dict) or not plan.get("exercises"):
+        raise https_fn.HttpsError(
+            code=https_fn.FunctionsErrorCode.INTERNAL,
+            message="Could not plan the session. Please try again.",
+        )
+
+    return {"plan": plan}
+
+
 # ─── extract_meal_plan_content ────────────────────────────────────────────────
 
 @https_fn.on_call(secrets=[GEMINI_API_KEY])
