@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Accordion,
@@ -158,17 +158,20 @@ export default function MealPlansPage() {
   const [actionId, setActionId] = useState<string | null>(null);
   const [reAnalyzingId, setReAnalyzingId] = useState<string | null>(null);
 
-  const load = async () => {
-    if (!currentUser) return;
+  // Keyed on the uid, not the User object, so a token refresh doesn't refetch.
+  const uid = currentUser?.uid;
+
+  const load = useCallback(async () => {
+    if (!uid) return;
     setLoading(true);
     try {
-      setPlans(await getMealPlans(currentUser.uid));
+      setPlans(await getMealPlans(uid));
     } finally {
       setLoading(false);
     }
-  };
+  }, [uid]);
 
-  useEffect(() => { load(); }, [currentUser]);
+  useEffect(() => { load(); }, [load]);
 
   // ── Upload ────────────────────────────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Accordion,
@@ -231,11 +231,14 @@ export default function MeasurementsTab({ date }: Props) {
     if (log?.body_fat_pct != null) setBodyFat(String(log.body_fat_pct));
   }, [log]);
 
-  const loadReports = async () => {
-    if (!currentUser) return;
+  // Keyed on the uid, not the User object, so a token refresh doesn't refetch.
+  const uid = currentUser?.uid;
+
+  const loadReports = useCallback(async () => {
+    if (!uid) return;
     setReportsLoading(true);
     try {
-      const docs = await getBodyCompositionReports(currentUser.uid);
+      const docs = await getBodyCompositionReports(uid);
       // Sort by report_date desc, fall back to created_at order (already desc from query)
       docs.sort((a, b) => {
         const da = a.report_date ?? '';
@@ -247,9 +250,9 @@ export default function MeasurementsTab({ date }: Props) {
     } finally {
       setReportsLoading(false);
     }
-  };
+  }, [uid]);
 
-  useEffect(() => { loadReports(); }, [currentUser]);
+  useEffect(() => { loadReports(); }, [loadReports]);
 
   // ── File handling ─────────────────────────────────────────────────────────
 
