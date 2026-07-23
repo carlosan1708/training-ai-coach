@@ -12,17 +12,28 @@ def build_user_context(
     Convert Firestore user data into a natural-language context block.
     Includes profile, active meal plan content, and recent log history.
     """
-    if not profile:
-        return "No user profile available yet."
+    # An empty profile used to short-circuit the whole function, which threw
+    # away the logs and meal plan too — the coach would deny knowing about a
+    # workout the user had just finished. Missing profile, missing logs and
+    # missing meal plan are independent; report each on its own.
+    profile = profile or {}
 
     lang_map = {"en": "English", "es": "Spanish", "both": "the same language the user writes in"}
     lang = lang_map.get(profile.get("response_language", "en"), "English")
     tone = profile.get("coaching_tone", "friendly")
 
-    lines = [
-        "## User Profile",
-        f"- Name: {profile.get('name', 'Unknown')}",
-    ]
+    if not profile:
+        lines = [
+            "## User Profile",
+            "- Not set up yet (the user has not completed onboarding).",
+            "- Do not assume this means there is no other data: any logged"
+            " training or meals below are real and should be used.",
+        ]
+    else:
+        lines = [
+            "## User Profile",
+            f"- Name: {profile.get('name', 'Unknown')}",
+        ]
 
     if profile.get("age"):
         lines.append(f"- Age: {profile['age']}")
