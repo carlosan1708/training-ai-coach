@@ -4,13 +4,15 @@ Firebase Cloud Functions entry point — Python + LangGraph.
 
 import json
 import re
+import smtplib
 from datetime import date, timedelta
+from email.message import EmailMessage
 
 import firebase_admin
 from firebase_admin import firestore as fs
-from firebase_functions import https_fn
+from firebase_functions import https_fn, firestore_fn
 from google.cloud.firestore_v1.base_query import FieldFilter
-from firebase_functions.params import SecretParam
+from firebase_functions.params import SecretParam, StringParam
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 
@@ -34,8 +36,16 @@ def _invoke_llm(llm, messages):
 # ─── Firebase init ────────────────────────────────────────────────────────────
 firebase_admin.initialize_app()
 
-# ─── Secret ───────────────────────────────────────────────────────────────────
+# ─── Secrets & params ─────────────────────────────────────────────────────────
 GEMINI_API_KEY = SecretParam("GEMINI_API_KEY")
+
+# Email notifications (signup requests). Credentials are secrets; host/port/
+# recipient are plain params so they can be set without redeploying secrets.
+SMTP_USER = SecretParam("SMTP_USER")          # e.g. your Gmail address
+SMTP_PASSWORD = SecretParam("SMTP_PASSWORD")  # Gmail App Password
+SMTP_HOST = StringParam("SMTP_HOST", default="smtp.gmail.com")
+SMTP_PORT = StringParam("SMTP_PORT", default="587")
+ADMIN_EMAIL = StringParam("ADMIN_EMAIL", default="")  # where notifications go
 
 
 # ─── chat ─────────────────────────────────────────────────────────────────────
@@ -685,6 +695,136 @@ def generate_weekly_report(req: https_fn.CallableRequest) -> dict:
             message="Authentication required.",
         )
     return {"report": _generate_weekly_report(req.auth.uid, fs.client())}
+
+
+# ─── analyze_meal_photo ───────────────────────────────────────────────────────
+
+@https_fn.on_call(secrets=[GEMINI_API_KEY])
+def analyze_meal_photo(req: https_fn.CallableRequest) -> dict:
+    """
+    Receives a base64-encoded photo of a meal and returns structured
+    nutrition: individual food items plus total calories and macros.
+    """
+    if req.auth is None:
+        raise https_fn.HttpsError(
+            code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
+            message="Authentication required.",
+        )
+
+    data = req.data or {}
+    image_b64: str = data.get("imageData", "")
+    mime_type: str = data.get("mimeType", "image/jpeg")
+
+    if not image_b64:
+        raise https_fn.HttpsError(
+            code=https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            message="imageData is required.",
+        )
+
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        google_api_key=GEMINI_API_KEY.value,
+    )
+
+    message = HumanMessage(content=[
+        {
+            "type": "image_url",
+            "image_url": {"url": f"data:{mime_type};base64,{image_b64}"},
+        },
+        {
+            "type": "text",
+            "text": (
+                "You are a nutrition expert. Analyse this photo of a meal and estimate "
+                "its nutrition. Identify each distinct food item, estimate its portion, "
+                "and give calories and macronutrients. Return ONLY a valid JSON object "
+                "— no markdown, no explanation — like:\n"
+                '{"name":"Grilled chicken with rice and salad",'
+                '"items":[{"name":"Grilled chicken breast","portion":"150g",'
+                '"calories":250,"protein_g":46,"carbs_g":0,"fat_g":6},'
+                '{"name":"White rice","portion":"1 cup","calories":205,'
+                '"protein_g":4,"carbs_g":45,"fat_g":0}],'
+                '"total_calories":455,"total_protein_g":50,"total_carbs_g":45,'
+                '"total_fat_g":6,"confidence":"medium"}\n'
+                "Rules:\n"
+                "- Estimate realistic portions from what's visible in the photo.\n"
+                "- total_* must be the sum of the items.\n"
+                "- Round all numbers to whole integers.\n"
+                "- confidence is one of: low / medium / high.\n"
+                "- If the image is not food, return "
+                '{"error":"not a meal photo"}.'
+            ),
+        },
+    ])
+
+    response = _invoke_llm(llm, [message])
+    meal = _extract_json(response.content)
+
+    if not isinstance(meal, dict) or meal.get("error"):
+        raise https_fn.HttpsError(
+            code=https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            message="Could not identify food in that photo. Try a clearer picture.",
+        )
+
+    return {"meal": meal}
+
+
+# ─── Signup email notification ────────────────────────────────────────────────
+
+@firestore_fn.on_document_created(
+    document="user_status/{uid}",
+    secrets=[SMTP_USER, SMTP_PASSWORD],
+)
+def notify_signup_request(event: firestore_fn.Event[firestore_fn.DocumentSnapshot | None]) -> None:
+    """
+    When a new user requests access (a user_status doc is created), email the
+    admin so they can approve or reject from the /admin panel.
+
+    Configure once:
+      firebase functions:secrets:set SMTP_USER       # your Gmail address
+      firebase functions:secrets:set SMTP_PASSWORD   # Gmail App Password
+      firebase functions:config is NOT used — set params via .env or:
+      echo "ADMIN_EMAIL=you@example.com" >> functions/.env
+    If SMTP is not configured the function logs and exits without erroring.
+    """
+    snap = event.data
+    if snap is None:
+        return
+    doc = snap.to_dict() or {}
+
+    # Only notify for brand-new pending requests
+    if doc.get("status") not in (None, "pending"):
+        return
+
+    user = SMTP_USER.value
+    password = SMTP_PASSWORD.value
+    recipient = ADMIN_EMAIL.value or user
+    if not user or not password or not recipient:
+        print("notify_signup_request: SMTP not configured — skipping email.")
+        return
+
+    display_name = doc.get("displayName") or "Unknown"
+    email = doc.get("email") or "unknown"
+
+    msg = EmailMessage()
+    msg["Subject"] = f"Training AI Coach — new signup request from {display_name}"
+    msg["From"] = user
+    msg["To"] = recipient
+    msg.set_content(
+        f"A new user has requested access to Training AI Coach:\n\n"
+        f"  Name:  {display_name}\n"
+        f"  Email: {email}\n"
+        f"  UID:   {event.params.get('uid')}\n\n"
+        f"Approve or reject them in the Admin panel of the app."
+    )
+
+    try:
+        with smtplib.SMTP(SMTP_HOST.value, int(SMTP_PORT.value), timeout=15) as server:
+            server.starttls()
+            server.login(user, password)
+            server.send_message(msg)
+        print(f"notify_signup_request: emailed {recipient} about {email}")
+    except Exception as e:  # noqa: BLE001 — never fail the signup because email failed
+        print(f"notify_signup_request: failed to send email: {e}")
 
 
 # ─── extract_meal_plan_content ────────────────────────────────────────────────

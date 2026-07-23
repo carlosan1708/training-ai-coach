@@ -58,6 +58,23 @@ export const deleteStoredFile = async (storagePath: string) => {
   return deleteObject(ref(storage, storagePath));
 };
 
+export const uploadMealPhoto = (
+  uid: string,
+  file: File,
+): Promise<UploadResult> => {
+  if (isDemoMode()) return Promise.resolve(demoUpload(file));
+  return new Promise((resolve, reject) => {
+    const ext = file.name.split('.').pop() ?? 'jpg';
+    const storagePath = `users/${uid}/meal_photos/${Date.now()}.${ext}`;
+    const storageRef = ref(storage, storagePath);
+    const task = uploadBytesResumable(storageRef, file);
+    task.on('state_changed', null, reject, async () => {
+      const downloadUrl = await getDownloadURL(task.snapshot.ref);
+      resolve({ downloadUrl, storagePath });
+    });
+  });
+};
+
 export const uploadBodyCompositionReport = (
   uid: string,
   file: File,

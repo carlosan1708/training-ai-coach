@@ -7,7 +7,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from './config';
 import { isDemoMode, demoDelay } from '../demo';
 import * as demoAi from '../demo/ai';
-import type { ExerciseLogEntry, BodyCompositionReport } from '../types/log';
+import type { ExerciseLogEntry, BodyCompositionReport, MealAnalysis } from '../types/log';
 import type { GeneratedRoutine, RoutineExercise, SessionPlan } from '../types/routine';
 import type { WeeklyReport } from '../types/report';
 
@@ -65,3 +65,17 @@ export const generateWeeklyReportFn = call<Record<string, never>, { report: Week
   'generate_weekly_report',
   () => demoAi.generateWeeklyReport()
 );
+
+// Meal photo analysis is a real-backend-only feature — no demo simulation.
+export const analyzeMealPhotoFn = async (
+  data: { imageData: string; mimeType: string }
+): Result<{ meal: MealAnalysis }> => {
+  if (isDemoMode()) {
+    throw new Error('Meal photo analysis is only available in the full app.');
+  }
+  const fn = httpsCallable<{ imageData: string; mimeType: string }, { meal: MealAnalysis }>(
+    functions,
+    'analyze_meal_photo'
+  );
+  return fn(data);
+};
