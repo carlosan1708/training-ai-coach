@@ -94,11 +94,32 @@ export const generateRoutine = (focus: string): { routine: GeneratedRoutine } =>
 
 const roundToPlate = (kg: number) => Math.round(kg / 2.5) * 2.5;
 
+const daysBetween = (a: string, b: string) =>
+  Math.abs(new Date(a).getTime() - new Date(b).getTime()) / 86400000;
+
 export const planWorkoutSession = (
   routine: { name: string; exercises: RoutineExercise[] },
   recentSessions: { date: string; exercises: { name: string; sets: SessionSet[] }[] }[]
 ): { plan: SessionPlan } => {
   const last = recentSessions[0];
+
+  const topFor = (session: (typeof recentSessions)[number] | undefined, name: string) => {
+    const e = session?.exercises.find((x) => x.name.toLowerCase() === name.toLowerCase());
+    return e ? topSetWeight(e.sets) : 0;
+  };
+
+  /** Stalled = top weight unchanged across history spanning >= 14 days. */
+  const isStalled = (name: string, currentTop: number) => {
+    if (recentSessions.length < 3 || currentTop === 0) return false;
+    const oldest = recentSessions[recentSessions.length - 1];
+    if (daysBetween(recentSessions[0].date, oldest.date) < 14) return false;
+    return recentSessions.every((s) => {
+      const top = topFor(s, name);
+      return top === 0 || top <= currentTop;
+    }) && topFor(oldest, name) === currentTop;
+  };
+
+  const stalledNames: string[] = [];
 
   const exercises = routine.exercises.map((ex) => {
     const prev = last?.exercises.find((e) => e.name.toLowerCase() === ex.name.toLowerCase());
@@ -109,6 +130,13 @@ export const planWorkoutSession = (
       return {
         name: ex.name, sets: ex.sets, reps: ex.reps, weight_kg: ex.weight_kg ?? 0,
         change: 'hold' as const, note: 'First session — establish a baseline',
+      };
+    }
+    if (isStalled(ex.name, prevTop)) {
+      stalledNames.push(ex.name);
+      return {
+        name: ex.name, sets: ex.sets, reps: ex.reps, weight_kg: roundToPlate(prevTop * 0.9),
+        change: 'decrease' as const, note: 'Stalled 2+ weeks — deload 10% and rebuild',
       };
     }
     const completedAll = prevSets.length >= ex.sets && prevSets.every((s) => s.reps >= ex.reps);
@@ -133,10 +161,13 @@ export const planWorkoutSession = (
   });
 
   const increased = exercises.filter((e) => e.change === 'increase').length;
+  const stallNote = stalledNames.length
+    ? ` ⚠️ ${stalledNames.join(', ')} hasn't moved in over 2 weeks — I've programmed a 10% deload to break the plateau; we'll rebuild past your old max over the next sessions.`
+    : '';
   const insight = last
     ? `You completed your last ${routine.name} session ${last.date} with every set done — readiness looks good ` +
       `(energy 4/5 yesterday). I've increased the load on ${increased} of ${exercises.length} exercises following ` +
-      `progressive overload. Focus point: keep 1–2 reps in reserve on the final set of your first lift.`
+      `progressive overload.${stallNote} Focus point: keep 1–2 reps in reserve on the final set of your first lift.`
     : `First time running ${routine.name} — today is about finding solid working weights. Log every set and ` +
       `I'll take it from there next session.`;
 

@@ -156,7 +156,7 @@ export default function RoutineDetailPage() {
     try {
       const result = await planSessionFn({
         routine: { name: routine.name, exercises: routine.exercises },
-        recentSessions: completed.slice(0, 4).map((s) => ({
+        recentSessions: completed.slice(0, 6).map((s) => ({
           date: s.date,
           exercises: s.exercises.map((e) => ({ name: e.name, sets: e.sets })),
         })),
