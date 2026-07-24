@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Accordion,
@@ -30,10 +30,6 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { serverTimestamp } from 'firebase/firestore';
-import { deleteObject, ref } from 'firebase/storage';
-import { deleteDoc } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
-import { functions, storage } from '../../firebase/config';
 import { useAuthStore } from '../../store/authStore';
 import {
   upsertDailyLog,
@@ -42,7 +38,8 @@ import {
   deleteBodyCompositionReport,
   type BodyCompositionReportDoc,
 } from '../../firebase/firestore';
-import { uploadBodyCompositionReport } from '../../firebase/storage';
+import { uploadBodyCompositionReport, deleteStoredFile } from '../../firebase/storage';
+import { parseBodyCompositionReportFn as parseBodyCompositionReport } from '../../firebase/callables';
 import { useDailyLog } from '../../hooks/useDailyLog';
 import type { Measurements, BodyCompositionReport } from '../../types/log';
 
@@ -55,11 +52,6 @@ const TAPE_FIELDS: { key: keyof Measurements; label: string }[] = [
   { key: 'arms_cm', label: 'measurements.arms' },
   { key: 'thighs_cm', label: 'measurements.thighs' },
 ];
-
-const parseBodyCompositionReport = httpsCallable<
-  { imageData: string; mimeType: string },
-  { report: BodyCompositionReport; summary: string | null }
->(functions, 'parse_body_composition_report');
 
 const BIA_FIELDS: { key: keyof BodyCompositionReport; label: string; unit: string; precision: number }[] = [
   { key: 'weight_kg',           label: 'measurements.weight',       unit: 'kg',   precision: 1 },
@@ -239,11 +231,14 @@ export default function MeasurementsTab({ date }: Props) {
     if (log?.body_fat_pct != null) setBodyFat(String(log.body_fat_pct));
   }, [log]);
 
-  const loadReports = async () => {
-    if (!currentUser) return;
+  // Keyed on the uid, not the User object, so a token refresh doesn't refetch.
+  const uid = currentUser?.uid;
+
+  const loadReports = useCallback(async () => {
+    if (!uid) return;
     setReportsLoading(true);
     try {
-      const docs = await getBodyCompositionReports(currentUser.uid);
+      const docs = await getBodyCompositionReports(uid);
       // Sort by report_date desc, fall back to created_at order (already desc from query)
       docs.sort((a, b) => {
         const da = a.report_date ?? '';
@@ -255,9 +250,9 @@ export default function MeasurementsTab({ date }: Props) {
     } finally {
       setReportsLoading(false);
     }
-  };
+  }, [uid]);
 
-  useEffect(() => { loadReports(); }, [currentUser]);
+  useEffect(() => { loadReports(); }, [loadReports]);
 
   // ── File handling ─────────────────────────────────────────────────────────
 
@@ -337,8 +332,8 @@ export default function MeasurementsTab({ date }: Props) {
     if (!currentUser || !window.confirm(t('measurements.deleteConfirm'))) return;
     setDeletingId(rep.id);
     try {
-      await deleteObject(ref(storage, rep.storage_path));
-      await deleteDoc(deleteBodyCompositionReport(currentUser.uid, rep.id));
+      await deleteStoredFile(rep.storage_path);
+      await deleteBodyCompositionReport(currentUser.uid, rep.id);
       await loadReports();
     } finally {
       setDeletingId(null);
@@ -491,7 +486,7 @@ export default function MeasurementsTab({ date }: Props) {
                 {rep.ai_summary && (
                   <Box sx={{ px: 2, pb: 1.5, borderTop: 1, borderColor: 'divider' }}>
                     <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" sx={{ mb: 0.5, mt: 1 }}>
-                      AI Summary
+                      {t('common.aiSummary')}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
                       {rep.ai_summary}

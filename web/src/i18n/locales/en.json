@@ -6,7 +6,9 @@
     "headline": "Your Personal Health Coach",
     "sub": "AI-powered meal plans, exercise coaching, and health tracking — all in one place.",
     "signIn": "Sign In",
-    "createAccount": "Create Account"
+    "createAccount": "Create Account",
+    "tryDemo": "Try the demo",
+    "demoHint": "No account needed — explore with sample data"
   },
   "auth": {
     "email": "Email",
@@ -126,16 +128,20 @@
     "plans": "Meal Plans",
     "progress": "Progress",
     "settings": "Settings",
-    "admin": "Admin"
+    "admin": "Admin",
+    "workouts": "Workouts",
+    "language": "Language"
   },
   "dashboard": {
     "welcome": "Welcome, {{name}}!",
+    "goalWeight": "Goal: {{kg}} kg",
     "todayWeight": "Today's Weight",
     "noWeight": "No weight logged today",
     "logToday": "Log Today",
     "openChat": "Ask AI Coach",
     "adherence": "Weekly Adherence",
-    "noData": "No data yet — start by logging your first entry!"
+    "noData": "No data yet — start by logging your first entry!",
+    "startWorkout": "Start Workout"
   },
   "dailyLog": {
     "title": "Daily Log",
@@ -156,7 +162,8 @@
     "notes": "Notes",
     "notesHint": "How was your day? Any meals skipped, soreness, etc.",
     "save": "Save Log",
-    "saved": "Log saved!"
+    "saved": "Log saved!",
+    "tabMeals": "Meals"
   },
   "measurements": {
     "hint": "Two complementary types — both feed the AI coach",
@@ -284,6 +291,133 @@
     "cancel": "Cancel",
     "delete": "Delete",
     "optional": "Optional",
-    "error": "Something went wrong."
+    "error": "Something went wrong.",
+    "back": "Back",
+    "edit": "Edit",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "aiSummary": "AI Summary"
+  },
+  "routines": {
+    "title": "Workout Routines",
+    "generateAi": "Generate with AI",
+    "createManual": "New Routine",
+    "empty": "No routines yet. Generate one with AI or build your own.",
+    "exerciseCount_one": "{{count}} exercise",
+    "exerciseCount_other": "{{count}} exercises",
+    "sessionCount_one": "{{count}} session",
+    "sessionCount_other": "{{count}} sessions",
+    "lastDone": "Last: {{date}}",
+    "deleteConfirm": "Delete routine \"{{name}}\"? Past sessions are kept.",
+    "generateHint": "The AI coach will build a routine from your profile (goal, equipment, session length). Optionally tell it what to focus on.",
+    "focus": "Focus",
+    "focusPlaceholder": "e.g. upper body strength, legs, full body...",
+    "notesPlaceholder": "e.g. shoulder feels tender, no barbell today...",
+    "generate": "Generate",
+    "generating": "Generating...",
+    "generateError": "Could not generate a routine. Please try again.",
+    "routineName": "Routine name",
+    "untitled": "My Routine",
+    "notFound": "Routine not found.",
+    "editRoutine": "Edit routine",
+    "description": "Description",
+    "addExercise": "Add exercise",
+    "searchExercises": "Search 870+ exercises...",
+    "addCustom": "Add custom exercise",
+    "libraryError": "Exercise library unavailable — you can still add custom exercises.",
+    "customExercise": "Custom exercise",
+    "exerciseName": "Exercise name",
+    "gifUrl": "GIF URL",
+    "gifUrlHint": "Optional: paste a link to an animated demo GIF",
+    "restSec": "Rest (sec)",
+    "startSession": "Start Workout (AI-adjusted)",
+    "resumeSession": "Resume workout in progress",
+    "aiPlanning": "AI is adjusting today's session...",
+    "aiUnavailable": "AI adjustment unavailable — using your routine targets for today.",
+    "progress": "Progress",
+    "topSetKg": "Top set (kg)",
+    "volumeKg": "Volume (kg)",
+    "noChartData": "Complete a session with weights to see progress here.",
+    "history": "Session history",
+    "finishSession": "Finish workout",
+    "target": "Target",
+    "lastTime": "Last time",
+    "addSet": "Add set"
+  },
+  "demo": {
+    "banner": "Demo mode — sample data stored on this device only. AI replies are simulated.",
+    "exit": "Exit demo"
+  },
+  "report": {
+    "title": "Weekly AI Report",
+    "generate": "Generate report",
+    "refresh": "Regenerate",
+    "generating": "Analyzing your week...",
+    "empty": "Get an AI summary of your training week — volume, weight trend, wins, and what to focus on next.",
+    "week": "{{start}} → {{end}}",
+    "sessions_one": "{{count}} session",
+    "sessions_other": "{{count}} sessions",
+    "volume": "{{kg}} kg lifted",
+    "wins": "WINS",
+    "focus": "NEXT WEEK",
+    "error": "Could not generate the report. Please try again."
+  },
+  "forecast": {
+    "title": "Goal Forecast",
+    "trend": "{{kg}} kg/week",
+    "current": "Current",
+    "goal": "Goal",
+    "eta": "At this rate you'll reach {{goal}} kg around {{date}}.",
+    "reached": "You've reached your goal weight — time to set a new target? 🎉",
+    "stalled": "Your weight has been flat for a while. If you expected it to move, ask the coach to review your calories.",
+    "movingAway": "You're trending away from your goal ({{kg}} kg/week). Worth a check-in with the coach.",
+    "insufficient": "Log your weight a few more days to unlock a forecast.",
+    "noGoal": "Set a goal weight in your profile to see a forecast."
+  },
+  "meals": {
+    "todayTotals": "Today's Nutrition",
+    "todayNutrition": "Today's Nutrition",
+    "calories": "Calories",
+    "protein": "Protein",
+    "carbs": "Carbs",
+    "fat": "Fat",
+    "mealCount_one": "{{count}} meal",
+    "mealCount_other": "{{count}} meals",
+    "snapTitle": "Snap a meal",
+    "snapHint": "Take or upload a photo of your meal — AI estimates the calories and macros.",
+    "takePhoto": "Take / Upload Photo",
+    "changePhoto": "Change Photo",
+    "analyze": "Analyze meal",
+    "analyzing": "Analyzing...",
+    "analyzeError": "Couldn't read that photo. Try a clearer picture of the food.",
+    "reviewEstimate": "Review the AI estimate, then log it",
+    "meal": "Meal",
+    "logMeal": "Log meal",
+    "loggedToday": "Logged today",
+    "demoUnavailable": "Meal photo analysis is available in the full app after signing in — it uses live AI to estimate calories and macros from your photos."
+  },
+  "pendingApproval": {
+    "title": "Awaiting Approval",
+    "body": "Your account has been created and is pending approval. You'll get access as soon as the administrator reviews your request.",
+    "autoUpdate": "This page updates automatically — no need to refresh."
+  },
+  "rejected": {
+    "title": "Access Denied",
+    "body": "Your account request was not approved. If you believe this is a mistake, please contact the administrator."
+  },
+  "admin": {
+    "title": "User Access Management",
+    "loadError": "Failed to load users.",
+    "updateError": "Failed to update status.",
+    "pendingHeading": "Pending Approval ({{count}})",
+    "noPending": "No pending requests.",
+    "allUsers": "All Users ({{count}})",
+    "approve": "Approve",
+    "reject": "Reject",
+    "status": {
+      "pending": "pending",
+      "approved": "approved",
+      "rejected": "rejected"
+    }
   }
 }

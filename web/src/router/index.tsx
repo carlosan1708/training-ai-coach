@@ -13,6 +13,9 @@ import DashboardPage from '../pages/DashboardPage';
 import LogPage from '../pages/LogPage';
 import MealPlansPage from '../pages/MealPlansPage';
 import ChatPage from '../pages/ChatPage';
+import RoutinesPage from '../pages/RoutinesPage';
+import RoutineDetailPage from '../pages/RoutineDetailPage';
+import WorkoutSessionPage from '../pages/WorkoutSessionPage';
 
 const ADMIN_UID = import.meta.env.VITE_ADMIN_UID as string | undefined;
 
@@ -26,9 +29,21 @@ function FullPageSpinner() {
 
 function ProtectedRoute() {
   const { currentUser, loading } = useAuthStore();
-  const { profile, profileLoading, approvalStatus, approvalLoading } = useProfileStore();
+  const {
+    profile, profileLoading, profileUid,
+    approvalStatus, approvalLoading, approvalUid,
+  } = useProfileStore();
 
-  if (loading || (currentUser && (profileLoading || approvalLoading))) return <FullPageSpinner />;
+  // On a deep link the auth listener resolves the user in the same commit that
+  // flips `loading` to false, one render before the listeners attach. Without
+  // these uid checks the not-yet-fetched `null`s read as real answers —
+  // "pending approval" and "no profile" — and bounce the user off the page.
+  const approvalReady = !!currentUser && approvalUid === currentUser.uid;
+  const profileReady = !!currentUser && profileUid === currentUser.uid;
+
+  if (loading || (currentUser && (profileLoading || approvalLoading || !approvalReady || !profileReady))) {
+    return <FullPageSpinner />;
+  }
   if (!currentUser) return <Navigate to="/" replace />;
 
   const isAdmin = ADMIN_UID && currentUser.uid === ADMIN_UID;
@@ -38,7 +53,11 @@ function ProtectedRoute() {
     if (approvalStatus === 'rejected') return <Navigate to="/rejected" replace />;
   }
 
-  if (profile && !profile.onboarding_complete) return <Navigate to="/onboarding" replace />;
+  // `profile && ...` let a user with no profile document at all slip past
+  // onboarding entirely: they landed on an empty dashboard for good, and every
+  // AI feature ran without age, goal or equipment. No document means not
+  // onboarded. Safe against the deep-link race thanks to profileReady above.
+  if (!profile || !profile.onboarding_complete) return <Navigate to="/onboarding" replace />;
 
   return <Outlet />;
 }
@@ -86,6 +105,9 @@ export default function AppRouter() {
         <Route element={<AppShell />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/log" element={<LogPage />} />
+          <Route path="/routines" element={<RoutinesPage />} />
+          <Route path="/routines/:routineId" element={<RoutineDetailPage />} />
+          <Route path="/routines/:routineId/session/:sessionId" element={<WorkoutSessionPage />} />
           <Route path="/plans" element={<MealPlansPage />} />
           <Route path="/chat" element={<ChatPage />} />
         </Route>

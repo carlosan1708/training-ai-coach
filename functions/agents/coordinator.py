@@ -15,10 +15,17 @@ from langgraph.graph import StateGraph, START, END
 
 from .state import CoachState, INTENTS
 from lib.context import build_user_context
+from lib.llm import content_text
 
 # ─── Shared LLM factory ───────────────────────────────────────────────────────
 
-def _make_llm(api_key: str, model: str = "gemini-2.0-flash") -> ChatGoogleGenerativeAI:
+# Mirrors GEMINI_MODEL in main.py; kept local to avoid importing the functions
+# entry point (which would be circular).
+FLASH_MODEL = "gemini-3.5-flash"
+PRO_MODEL = "gemini-pro-latest"
+
+
+def _make_llm(api_key: str, model: str = FLASH_MODEL) -> ChatGoogleGenerativeAI:
     return ChatGoogleGenerativeAI(model=model, google_api_key=api_key)
 
 
@@ -43,7 +50,7 @@ def _router_node(llm: ChatGoogleGenerativeAI):
             "Reply with ONLY one word: diet, exercise, health, or general"
         )
         response = llm.invoke([HumanMessage(content=prompt)])
-        intent = response.content.strip().lower().split()[0]
+        intent = content_text(response).strip().lower().split()[0]
         if intent not in INTENTS:
             intent = "general"
         return {"intent": intent}
@@ -116,8 +123,8 @@ Keep responses warm, concise, and actionable."""
 
 def build_graph(api_key: str):
     """Build and compile the LangGraph coordinator graph."""
-    llm_flash = _make_llm(api_key, "gemini-2.0-flash")
-    llm_pro = _make_llm(api_key, "gemini-2.5-pro-preview-05-06")
+    llm_flash = _make_llm(api_key, FLASH_MODEL)
+    llm_pro = _make_llm(api_key, PRO_MODEL)
 
     graph = StateGraph(CoachState)
 

@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Button,
@@ -12,6 +13,7 @@ import { useAuthStore } from '../store/authStore';
 
 export default function PendingApprovalPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { setCurrentUser } = useAuthStore();
 
   const handleSignOut = async () => {
@@ -33,17 +35,16 @@ export default function PendingApprovalPage() {
         <Stack spacing={3} alignItems="center" textAlign="center">
           <HourglassTopIcon sx={{ fontSize: 72, color: 'warning.main' }} />
           <Typography variant="h4" fontWeight={700}>
-            Awaiting Approval
+            {t('pendingApproval.title')}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Your account has been created and is pending approval. You'll get
-            access as soon as the administrator reviews your request.
+            {t('pendingApproval.body')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            This page updates automatically — no need to refresh.
+            {t('pendingApproval.autoUpdate')}
           </Typography>
           <Button variant="outlined" color="inherit" onClick={handleSignOut}>
-            Sign Out
+            {t('auth.signOut')}
           </Button>
         </Stack>
       </Container>

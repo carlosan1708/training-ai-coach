@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Accordion,
@@ -30,18 +30,11 @@ import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import RestaurantMenuIcon from '@mui/icons-material/RestaurantMenu';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import { deleteDoc } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
 import mammoth from 'mammoth';
-import { functions } from '../firebase/config';
 import { useAuthStore } from '../store/authStore';
 import { getMealPlans, addMealPlan, setActiveMealPlan, deleteMealPlan, updateMealPlan, type MealPlanDoc } from '../firebase/firestore';
 import { uploadMealPlan, deleteMealPlanFile } from '../firebase/storage';
-
-const extractMealPlanContent = httpsCallable<
-  { imageData?: string; mimeType?: string; textContent?: string },
-  { content: Record<string, unknown> }
->(functions, 'extract_meal_plan_content');
+import { extractMealPlanContentFn as extractMealPlanContent } from '../firebase/callables';
 
 const fileIcon = (type: string) => {
   if (type === 'pdf') return <PictureAsPdfIcon color="error" />;
@@ -165,17 +158,20 @@ export default function MealPlansPage() {
   const [actionId, setActionId] = useState<string | null>(null);
   const [reAnalyzingId, setReAnalyzingId] = useState<string | null>(null);
 
-  const load = async () => {
-    if (!currentUser) return;
+  // Keyed on the uid, not the User object, so a token refresh doesn't refetch.
+  const uid = currentUser?.uid;
+
+  const load = useCallback(async () => {
+    if (!uid) return;
     setLoading(true);
     try {
-      setPlans(await getMealPlans(currentUser.uid));
+      setPlans(await getMealPlans(uid));
     } finally {
       setLoading(false);
     }
-  };
+  }, [uid]);
 
-  useEffect(() => { load(); }, [currentUser]);
+  useEffect(() => { load(); }, [load]);
 
   // ── Upload ────────────────────────────────────────────────────────────────
 
@@ -308,7 +304,7 @@ export default function MealPlansPage() {
     setActionId(plan.id);
     try {
       await deleteMealPlanFile(plan.storage_path);
-      await deleteDoc(deleteMealPlan(currentUser.uid, plan.id));
+      await deleteMealPlan(currentUser.uid, plan.id);
       await load();
     } catch {
       setError(t('mealPlans.deleteError'));
@@ -452,7 +448,7 @@ export default function MealPlansPage() {
               {plan.ai_summary && (
                 <Box sx={{ px: 2, pb: 1.5, borderTop: 1, borderColor: 'divider' }}>
                   <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" sx={{ mb: 0.5, mt: 1 }}>
-                    AI Summary
+                    {t('common.aiSummary')}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
                     {plan.ai_summary}

@@ -12,8 +12,12 @@ import {
 } from '@mui/material';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import ChatIcon from '@mui/icons-material/Chat';
+import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import { useProfileStore } from '../store/profileStore';
 import { useDailyLog } from '../hooks/useDailyLog';
+import WeeklyReportCard from '../components/dashboard/WeeklyReportCard';
+import GoalForecastCard from '../components/dashboard/GoalForecastCard';
+import NutritionCard from '../components/dashboard/NutritionCard';
 
 const today = new Date().toISOString().split('T')[0];
 
@@ -45,7 +49,7 @@ export default function DashboardPage() {
                 </Typography>
                 {profile?.goal_weight_kg && (
                   <Typography variant="body2" color="text.secondary">
-                    Goal: {profile.goal_weight_kg} kg
+                    {t('dashboard.goalWeight', { kg: profile.goal_weight_kg })}
                   </Typography>
                 )}
               </CardContent>
@@ -98,6 +102,10 @@ export default function DashboardPage() {
           </Box>
         )}
 
+        <GoalForecastCard />
+        <NutritionCard />
+        <WeeklyReportCard />
+
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
           <Button
             variant="contained"
@@ -107,6 +115,16 @@ export default function DashboardPage() {
             fullWidth
           >
             {t('dashboard.logToday')}
+          </Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            size="large"
+            startIcon={<FitnessCenterIcon />}
+            onClick={() => navigate('/routines')}
+            fullWidth
+          >
+            {t('dashboard.startWorkout')}
           </Button>
           <Button
             variant="outlined"

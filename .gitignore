@@ -32,3 +32,6 @@ Thumbs.db
 .idea/
 .claude/
 *.swp
+
+# Function secrets
+functions/.env

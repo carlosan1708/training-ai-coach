@@ -6,7 +6,9 @@
     "headline": "Tu Entrenador de Salud Personal",
     "sub": "Planes de comida con IA, asesoramiento de ejercicio y seguimiento de salud — todo en un lugar.",
     "signIn": "Iniciar Sesión",
-    "createAccount": "Crear Cuenta"
+    "createAccount": "Crear Cuenta",
+    "tryDemo": "Probar la demo",
+    "demoHint": "Sin cuenta — explora con datos de ejemplo"
   },
   "auth": {
     "email": "Correo electrónico",
@@ -126,16 +128,20 @@
     "plans": "Planes de Comida",
     "progress": "Progreso",
     "settings": "Configuración",
-    "admin": "Admin"
+    "admin": "Admin",
+    "workouts": "Entrenos",
+    "language": "Idioma"
   },
   "dashboard": {
     "welcome": "¡Bienvenido, {{name}}!",
+    "goalWeight": "Objetivo: {{kg}} kg",
     "todayWeight": "Peso de Hoy",
     "noWeight": "Sin peso registrado hoy",
     "logToday": "Registrar Hoy",
     "openChat": "Preguntar al Coach IA",
     "adherence": "Adherencia Semanal",
-    "noData": "¡Sin datos aún — comienza registrando tu primera entrada!"
+    "noData": "¡Sin datos aún — comienza registrando tu primera entrada!",
+    "startWorkout": "Empezar Entreno"
   },
   "dailyLog": {
     "title": "Registro Diario",
@@ -156,7 +162,8 @@
     "notes": "Notas",
     "notesHint": "¿Cómo fue tu día? ¿Alguna comida omitida, dolor muscular, etc.?",
     "save": "Guardar Registro",
-    "saved": "¡Registro guardado!"
+    "saved": "¡Registro guardado!",
+    "tabMeals": "Comidas"
   },
   "measurements": {
     "hint": "Dos tipos complementarios — ambos alimentan al coach de IA",
@@ -284,6 +291,133 @@
     "cancel": "Cancelar",
     "delete": "Eliminar",
     "optional": "Opcional",
-    "error": "Algo salió mal."
+    "error": "Algo salió mal.",
+    "back": "Atrás",
+    "edit": "Editar",
+    "moveUp": "Subir",
+    "moveDown": "Bajar",
+    "aiSummary": "Resumen de IA"
+  },
+  "routines": {
+    "title": "Rutinas de Entrenamiento",
+    "generateAi": "Generar con IA",
+    "createManual": "Nueva Rutina",
+    "empty": "Aún no hay rutinas. Genera una con IA o crea la tuya.",
+    "exerciseCount_one": "{{count}} ejercicio",
+    "exerciseCount_other": "{{count}} ejercicios",
+    "sessionCount_one": "{{count}} sesión",
+    "sessionCount_other": "{{count}} sesiones",
+    "lastDone": "Última: {{date}}",
+    "deleteConfirm": "¿Eliminar la rutina \"{{name}}\"? Las sesiones pasadas se conservan.",
+    "generateHint": "El coach de IA creará una rutina según tu perfil (objetivo, equipo, duración). Opcionalmente dile en qué enfocarse.",
+    "focus": "Enfoque",
+    "focusPlaceholder": "ej. fuerza de tren superior, piernas, cuerpo completo...",
+    "notesPlaceholder": "ej. hombro sensible, hoy sin barra...",
+    "generate": "Generar",
+    "generating": "Generando...",
+    "generateError": "No se pudo generar la rutina. Inténtalo de nuevo.",
+    "routineName": "Nombre de la rutina",
+    "untitled": "Mi Rutina",
+    "notFound": "Rutina no encontrada.",
+    "editRoutine": "Editar rutina",
+    "description": "Descripción",
+    "addExercise": "Añadir ejercicio",
+    "searchExercises": "Busca entre 870+ ejercicios...",
+    "addCustom": "Añadir ejercicio personalizado",
+    "libraryError": "Biblioteca de ejercicios no disponible — puedes añadir ejercicios personalizados.",
+    "customExercise": "Ejercicio personalizado",
+    "exerciseName": "Nombre del ejercicio",
+    "gifUrl": "URL del GIF",
+    "gifUrlHint": "Opcional: pega un enlace a un GIF de demostración",
+    "restSec": "Descanso (seg)",
+    "startSession": "Empezar Entrenamiento (ajustado por IA)",
+    "resumeSession": "Reanudar entrenamiento en curso",
+    "aiPlanning": "La IA está ajustando la sesión de hoy...",
+    "aiUnavailable": "Ajuste de IA no disponible — usando los objetivos de tu rutina para hoy.",
+    "progress": "Progreso",
+    "topSetKg": "Serie máxima (kg)",
+    "volumeKg": "Volumen (kg)",
+    "noChartData": "Completa una sesión con pesos para ver tu progreso aquí.",
+    "history": "Historial de sesiones",
+    "finishSession": "Terminar entrenamiento",
+    "target": "Objetivo",
+    "lastTime": "Última vez",
+    "addSet": "Añadir serie"
+  },
+  "demo": {
+    "banner": "Modo demo — datos de ejemplo guardados solo en este dispositivo. Las respuestas de IA son simuladas.",
+    "exit": "Salir de la demo"
+  },
+  "report": {
+    "title": "Informe Semanal IA",
+    "generate": "Generar informe",
+    "refresh": "Regenerar",
+    "generating": "Analizando tu semana...",
+    "empty": "Recibe un resumen de IA de tu semana de entrenamiento: volumen, tendencia de peso, logros y en qué enfocarte.",
+    "week": "{{start}} → {{end}}",
+    "sessions_one": "{{count}} sesión",
+    "sessions_other": "{{count}} sesiones",
+    "volume": "{{kg}} kg levantados",
+    "wins": "LOGROS",
+    "focus": "PRÓXIMA SEMANA",
+    "error": "No se pudo generar el informe. Inténtalo de nuevo."
+  },
+  "forecast": {
+    "title": "Pronóstico de Objetivo",
+    "trend": "{{kg}} kg/semana",
+    "current": "Actual",
+    "goal": "Objetivo",
+    "eta": "A este ritmo alcanzarás {{goal}} kg alrededor del {{date}}.",
+    "reached": "Has alcanzado tu peso objetivo — ¿hora de fijar uno nuevo? 🎉",
+    "stalled": "Tu peso lleva un tiempo estancado. Si esperabas cambios, pide al coach revisar tus calorías.",
+    "movingAway": "Te estás alejando de tu objetivo ({{kg}} kg/semana). Vale la pena consultarlo con el coach.",
+    "insufficient": "Registra tu peso unos días más para desbloquear el pronóstico.",
+    "noGoal": "Define un peso objetivo en tu perfil para ver el pronóstico."
+  },
+  "meals": {
+    "todayTotals": "Nutrición de Hoy",
+    "todayNutrition": "Nutrición de Hoy",
+    "calories": "Calorías",
+    "protein": "Proteína",
+    "carbs": "Carbohidratos",
+    "fat": "Grasa",
+    "mealCount_one": "{{count}} comida",
+    "mealCount_other": "{{count}} comidas",
+    "snapTitle": "Fotografía tu comida",
+    "snapHint": "Toma o sube una foto de tu comida — la IA estima las calorías y macros.",
+    "takePhoto": "Tomar / Subir Foto",
+    "changePhoto": "Cambiar Foto",
+    "analyze": "Analizar comida",
+    "analyzing": "Analizando...",
+    "analyzeError": "No se pudo leer la foto. Prueba con una imagen más clara.",
+    "reviewEstimate": "Revisa la estimación de la IA y regístrala",
+    "meal": "Comida",
+    "logMeal": "Registrar comida",
+    "loggedToday": "Registrado hoy",
+    "demoUnavailable": "El análisis de comidas por foto está disponible en la app completa tras iniciar sesión — usa IA en vivo para estimar calorías y macros de tus fotos."
+  },
+  "pendingApproval": {
+    "title": "Esperando aprobación",
+    "body": "Tu cuenta se ha creado y está pendiente de aprobación. Tendrás acceso en cuanto el administrador revise tu solicitud.",
+    "autoUpdate": "Esta página se actualiza automáticamente — no hace falta recargar."
+  },
+  "rejected": {
+    "title": "Acceso denegado",
+    "body": "Tu solicitud de cuenta no fue aprobada. Si crees que es un error, comunícate con el administrador."
+  },
+  "admin": {
+    "title": "Gestión de acceso de usuarios",
+    "loadError": "No se pudieron cargar los usuarios.",
+    "updateError": "No se pudo actualizar el estado.",
+    "pendingHeading": "Pendientes de aprobación ({{count}})",
+    "noPending": "No hay solicitudes pendientes.",
+    "allUsers": "Todos los usuarios ({{count}})",
+    "approve": "Aprobar",
+    "reject": "Rechazar",
+    "status": {
+      "pending": "pendiente",
+      "approved": "aprobado",
+      "rejected": "rechazado"
+    }
   }
 }

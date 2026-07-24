@@ -21,20 +21,14 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import SaveIcon from '@mui/icons-material/Save';
-import { httpsCallable } from 'firebase/functions';
 import { serverTimestamp } from 'firebase/firestore';
-import { functions } from '../../firebase/config';
 import { useAuthStore } from '../../store/authStore';
 import { upsertDailyLog } from '../../firebase/firestore';
+import { parseExercisePhotoFn as parseExercisePhoto } from '../../firebase/callables';
 import { useDailyLog } from '../../hooks/useDailyLog';
 import type { ExerciseLogEntry } from '../../types/log';
 
 interface Props { date: string }
-
-const parseExercisePhoto = httpsCallable<
-  { imageData: string; mimeType: string },
-  { exercises: ExerciseLogEntry[] }
->(functions, 'parse_exercise_photo');
 
 const emptyExercise = (): ExerciseLogEntry => ({
   exercise: '',
