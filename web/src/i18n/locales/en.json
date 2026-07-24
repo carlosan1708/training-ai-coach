@@ -129,7 +129,8 @@
     "progress": "Progress",
     "settings": "Settings",
     "admin": "Admin",
-    "workouts": "Workouts"
+    "workouts": "Workouts",
+    "language": "Language"
   },
   "dashboard": {
     "welcome": "Welcome, {{name}}!",

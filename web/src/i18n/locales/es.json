@@ -129,7 +129,8 @@
     "progress": "Progreso",
     "settings": "Configuración",
     "admin": "Admin",
-    "workouts": "Entrenos"
+    "workouts": "Entrenos",
+    "language": "Idioma"
   },
   "dashboard": {
     "welcome": "¡Bienvenido, {{name}}!",

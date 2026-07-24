@@ -12,6 +12,7 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { signOut } from '../../firebase/auth';
 import { useAuthStore } from '../../store/authStore';
+import LanguageSwitcher from './LanguageSwitcher';
 
 const DRAWER_WIDTH = 240;
 const ADMIN_UID = import.meta.env.VITE_ADMIN_UID as string | undefined;
@@ -74,6 +75,9 @@ export default function Sidebar() {
 
       <Divider />
       <List>
+        <ListItem disablePadding>
+          <LanguageSwitcher variant="row" />
+        </ListItem>
         <ListItem disablePadding>
           <ListItemButton onClick={handleSignOut} sx={{ borderRadius: 1, mx: 1 }}>
             <ListItemIcon><LogoutIcon /></ListItemIcon>
