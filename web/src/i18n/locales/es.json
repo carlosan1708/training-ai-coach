@@ -130,7 +130,23 @@
     "settings": "Configuración",
     "admin": "Admin",
     "workouts": "Entrenos",
+    "nutrition": "Nutrición",
     "language": "Idioma"
+  },
+  "nutritionHistory": {
+    "title": "Historial de nutrición",
+    "range7": "7 días",
+    "range30": "30 días",
+    "range90": "90 días",
+    "avgCalories": "Calorías/día promedio",
+    "avgProtein": "Proteína/día promedio",
+    "daysLogged": "Días registrados",
+    "daysOnTarget": "Días en objetivo",
+    "caloriesChart": "Calorías vs objetivo",
+    "macrosChart": "Macros",
+    "pastDays": "Días anteriores",
+    "empty": "Aún no has registrado comidas. Empieza a registrar para ver tendencias.",
+    "target": "Objetivo"
   },
   "dashboard": {
     "welcome": "¡Bienvenido, {{name}}!",
