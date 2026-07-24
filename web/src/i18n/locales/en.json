@@ -133,6 +133,7 @@
   },
   "dashboard": {
     "welcome": "Welcome, {{name}}!",
+    "goalWeight": "Goal: {{kg}} kg",
     "todayWeight": "Today's Weight",
     "noWeight": "No weight logged today",
     "logToday": "Log Today",
@@ -293,7 +294,8 @@
     "back": "Back",
     "edit": "Edit",
     "moveUp": "Move up",
-    "moveDown": "Move down"
+    "moveDown": "Move down",
+    "aiSummary": "AI Summary"
   },
   "routines": {
     "title": "Workout Routines",
@@ -392,5 +394,29 @@
     "logMeal": "Log meal",
     "loggedToday": "Logged today",
     "demoUnavailable": "Meal photo analysis is available in the full app after signing in — it uses live AI to estimate calories and macros from your photos."
+  },
+  "pendingApproval": {
+    "title": "Awaiting Approval",
+    "body": "Your account has been created and is pending approval. You'll get access as soon as the administrator reviews your request.",
+    "autoUpdate": "This page updates automatically — no need to refresh."
+  },
+  "rejected": {
+    "title": "Access Denied",
+    "body": "Your account request was not approved. If you believe this is a mistake, please contact the administrator."
+  },
+  "admin": {
+    "title": "User Access Management",
+    "loadError": "Failed to load users.",
+    "updateError": "Failed to update status.",
+    "pendingHeading": "Pending Approval ({{count}})",
+    "noPending": "No pending requests.",
+    "allUsers": "All Users ({{count}})",
+    "approve": "Approve",
+    "reject": "Reject",
+    "status": {
+      "pending": "pending",
+      "approved": "approved",
+      "rejected": "rejected"
+    }
   }
 }

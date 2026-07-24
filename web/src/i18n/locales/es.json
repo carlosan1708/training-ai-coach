@@ -133,6 +133,7 @@
   },
   "dashboard": {
     "welcome": "¡Bienvenido, {{name}}!",
+    "goalWeight": "Objetivo: {{kg}} kg",
     "todayWeight": "Peso de Hoy",
     "noWeight": "Sin peso registrado hoy",
     "logToday": "Registrar Hoy",
@@ -293,7 +294,8 @@
     "back": "Atrás",
     "edit": "Editar",
     "moveUp": "Subir",
-    "moveDown": "Bajar"
+    "moveDown": "Bajar",
+    "aiSummary": "Resumen de IA"
   },
   "routines": {
     "title": "Rutinas de Entrenamiento",
@@ -392,5 +394,29 @@
     "logMeal": "Registrar comida",
     "loggedToday": "Registrado hoy",
     "demoUnavailable": "El análisis de comidas por foto está disponible en la app completa tras iniciar sesión — usa IA en vivo para estimar calorías y macros de tus fotos."
+  },
+  "pendingApproval": {
+    "title": "Esperando aprobación",
+    "body": "Tu cuenta se ha creado y está pendiente de aprobación. Tendrás acceso en cuanto el administrador revise tu solicitud.",
+    "autoUpdate": "Esta página se actualiza automáticamente — no hace falta recargar."
+  },
+  "rejected": {
+    "title": "Acceso denegado",
+    "body": "Tu solicitud de cuenta no fue aprobada. Si crees que es un error, comunícate con el administrador."
+  },
+  "admin": {
+    "title": "Gestión de acceso de usuarios",
+    "loadError": "No se pudieron cargar los usuarios.",
+    "updateError": "No se pudo actualizar el estado.",
+    "pendingHeading": "Pendientes de aprobación ({{count}})",
+    "noPending": "No hay solicitudes pendientes.",
+    "allUsers": "Todos los usuarios ({{count}})",
+    "approve": "Aprobar",
+    "reject": "Rechazar",
+    "status": {
+      "pending": "pendiente",
+      "approved": "aprobado",
+      "rejected": "rechazado"
+    }
   }
 }

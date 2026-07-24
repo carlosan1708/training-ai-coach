@@ -448,7 +448,7 @@ export default function MealPlansPage() {
               {plan.ai_summary && (
                 <Box sx={{ px: 2, pb: 1.5, borderTop: 1, borderColor: 'divider' }}>
                   <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" sx={{ mb: 0.5, mt: 1 }}>
-                    AI Summary
+                    {t('common.aiSummary')}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
                     {plan.ai_summary}

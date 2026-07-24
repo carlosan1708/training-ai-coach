@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Button,
@@ -12,6 +13,7 @@ import { useAuthStore } from '../store/authStore';
 
 export default function RejectedPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { setCurrentUser } = useAuthStore();
 
   const handleSignOut = async () => {
@@ -33,14 +35,13 @@ export default function RejectedPage() {
         <Stack spacing={3} alignItems="center" textAlign="center">
           <BlockIcon sx={{ fontSize: 72, color: 'error.main' }} />
           <Typography variant="h4" fontWeight={700}>
-            Access Denied
+            {t('rejected.title')}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Your account request was not approved. If you believe this is a
-            mistake, please contact the administrator.
+            {t('rejected.body')}
           </Typography>
           <Button variant="outlined" color="inherit" onClick={handleSignOut}>
-            Sign Out
+            {t('auth.signOut')}
           </Button>
         </Stack>
       </Container>

@@ -49,7 +49,7 @@ export default function DashboardPage() {
                 </Typography>
                 {profile?.goal_weight_kg && (
                   <Typography variant="body2" color="text.secondary">
-                    Goal: {profile.goal_weight_kg} kg
+                    {t('dashboard.goalWeight', { kg: profile.goal_weight_kg })}
                   </Typography>
                 )}
               </CardContent>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Box,
@@ -27,6 +28,7 @@ const statusColor: Record<ApprovalStatus, 'warning' | 'success' | 'error'> = {
 };
 
 export default function AdminPage() {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<UserStatusDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -38,7 +40,7 @@ export default function AdminPage() {
       const data = await getAllUserStatuses();
       setUsers(data);
     } catch {
-      setError('Failed to load users.');
+      setError(t('admin.loadError'));
     } finally {
       setLoading(false);
     }
@@ -56,7 +58,7 @@ export default function AdminPage() {
         prev.map((u) => (u.uid === uid ? { ...u, status } : u))
       );
     } catch {
-      setError('Failed to update status.');
+      setError(t('admin.updateError'));
     } finally {
       setUpdating(null);
     }
@@ -69,7 +71,7 @@ export default function AdminPage() {
     <Container maxWidth="md" sx={{ py: 4 }}>
       <Stack spacing={3}>
         <Typography variant="h5" fontWeight={700}>
-          User Access Management
+          {t('admin.title')}
         </Typography>
 
         {error && <Alert severity="error" onClose={() => setError('')}>{error}</Alert>}
@@ -83,11 +85,11 @@ export default function AdminPage() {
             {/* Pending */}
             <Stack spacing={1}>
               <Typography variant="overline" color="text.secondary">
-                Pending Approval ({pending.length})
+                {t('admin.pendingHeading', { count: pending.length })}
               </Typography>
               {pending.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
-                  No pending requests.
+                  {t('admin.noPending')}
                 </Typography>
               ) : (
                 pending.map((user) => (
@@ -107,7 +109,7 @@ export default function AdminPage() {
             {/* All others */}
             <Stack spacing={1}>
               <Typography variant="overline" color="text.secondary">
-                All Users ({others.length})
+                {t('admin.allUsers', { count: others.length })}
               </Typography>
               {others.map((user) => (
                 <UserRow
@@ -137,6 +139,7 @@ function UserRow({
   onApprove: () => void;
   onReject: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Box
       sx={{
@@ -162,7 +165,7 @@ function UserRow({
       </Stack>
 
       <Chip
-        label={user.status}
+        label={t(`admin.status.${user.status}`)}
         color={statusColor[user.status]}
         size="small"
         variant="outlined"
@@ -180,7 +183,7 @@ function UserRow({
             onClick={onApprove}
             disabled={user.status === 'approved'}
           >
-            Approve
+            {t('admin.approve')}
           </Button>
           <Button
             size="small"
@@ -190,7 +193,7 @@ function UserRow({
             onClick={onReject}
             disabled={user.status === 'rejected'}
           >
-            Reject
+            {t('admin.reject')}
           </Button>
         </Stack>
       )}
