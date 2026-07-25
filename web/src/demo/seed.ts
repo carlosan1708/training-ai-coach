@@ -146,7 +146,28 @@ const buildSession = (
   };
 };
 
-export const seedDemoDb = () => {
+/** Three meals for a day, totals varying around the 2,400 kcal target. */
+const sampleMeals = (day: string, i: number): DailyLog['food_log'] => {
+  const wave = Math.sin(i / 3);
+  const cal = Math.round(2300 + wave * 350);
+  const p = Math.round(150 + wave * 30);
+  const c = Math.round(230 + wave * 40);
+  const f = Math.round(70 + wave * 12);
+  const meal = (name: string, r: number, ts: string) => ({
+    meal: name, description: name, adherent: true, timestamp: `${day}T${ts}Z`,
+    calories: Math.round(cal * r), protein_g: Math.round(p * r),
+    carbs_g: Math.round(c * r), fat_g: Math.round(f * r),
+  });
+  return [
+    meal(L('Breakfast', 'Desayuno'), 0.3, '08:00:00'),
+    meal(L('Lunch', 'Almuerzo'), 0.4, '13:00:00'),
+    meal(L('Dinner', 'Cena'), 0.3, '20:00:00'),
+  ];
+};
+
+/** The sample dataset, shared by demo mode (localStorage) and the live-AI
+ *  trial (seeded into Firestore). */
+export const buildSampleData = () => {
   const upperId = 'demo-routine-upper';
   const lowerId = 'demo-routine-lower';
   const upperName = UPPER_NAME();
@@ -187,28 +208,25 @@ export const seedDemoDb = () => {
     buildSession(lowerId, lowerName, lower, 4, 2),
   ].map((s, i) => ({ ...s, id: `demo-session-${i}` }));
 
-  // 4 weeks of daily logs: weight drifting from 78.6 → 77.2 with noise
+  // 4 weeks of daily logs: weight drifting from 78.6 → 77.2 with noise, and
+  // meals on all but the two oldest days so nutrition history has data.
   const logs: Record<string, DailyLog> = {};
   for (let i = 27; i >= 0; i--) {
+    const day = iso(i);
     const weight = 77.2 + (i / 27) * 1.4 + (Math.sin(i * 1.7) * 0.25);
-    logs[iso(i)] = {
-      date: iso(i),
+    logs[day] = {
+      date: day,
       weight_kg: Math.round(weight * 10) / 10,
       measurements: {},
       energy: 3 + ((i * 7) % 3),
       notes: i === 1 ? L('Slept badly, a bit tired today', 'Dormí mal, un poco cansado hoy') : '',
-      food_log: [],
+      food_log: i <= 25 ? sampleMeals(day, i) : [],
       exercise_log: [],
     };
   }
 
   const lang: 'en' | 'es' = es() ? 'es' : 'en';
-  const db: DemoDb = {
-    profile: { ...PROFILE, ui_language: lang, response_language: lang },
-    logs,
-    routines,
-    sessions,
-    meal_plans: [
+  const mealPlans: DemoDb['meal_plans'] = [
       {
         id: 'demo-plan-1',
         name: MEAL_PLAN_NAME(),
@@ -235,9 +253,28 @@ export const seedDemoDb = () => {
         },
         created_at: Date.now(),
       },
-    ],
+  ];
+
+  return {
+    profile: { ...PROFILE, ui_language: lang, response_language: lang },
+    logs,
+    routines,
+    sessions,
+    mealPlans,
+  };
+};
+
+export type SampleData = ReturnType<typeof buildSampleData>;
+
+export const seedDemoDb = () => {
+  const d = buildSampleData();
+  const db: DemoDb = {
+    profile: d.profile,
+    logs: d.logs,
+    routines: d.routines,
+    sessions: d.sessions,
+    meal_plans: d.mealPlans,
     reports: [],
   };
-
   localStorage.setItem(DB_KEY, JSON.stringify(db));
 };

@@ -8,7 +8,14 @@
     "signIn": "Iniciar Sesión",
     "createAccount": "Crear Cuenta",
     "tryDemo": "Probar la demo",
-    "demoHint": "Sin cuenta — explora con datos de ejemplo"
+    "demoHint": "Sin cuenta — explora con datos de ejemplo",
+    "tryRealAi": "Probar con IA real",
+    "realAiHint": "Inicia sesión con Google — IA real con datos de ejemplo, con límite diario.",
+    "startFresh": "empezar de cero"
+  },
+  "trial": {
+    "banner": "Demo con IA real — IA real con datos de ejemplo, con límite diario.",
+    "exit": "Salir"
   },
   "auth": {
     "email": "Correo electrónico",

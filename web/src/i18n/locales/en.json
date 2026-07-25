@@ -8,7 +8,14 @@
     "signIn": "Sign In",
     "createAccount": "Create Account",
     "tryDemo": "Try the demo",
-    "demoHint": "No account needed — explore with sample data"
+    "demoHint": "No account needed — explore with sample data",
+    "tryRealAi": "Try with real AI",
+    "realAiHint": "Sign in with Google — real AI on sample data, limited daily.",
+    "startFresh": "start fresh"
+  },
+  "trial": {
+    "banner": "Live AI demo — real AI on sample data, limited per day.",
+    "exit": "Exit"
   },
   "auth": {
     "email": "Email",

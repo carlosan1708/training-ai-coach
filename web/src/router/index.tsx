@@ -2,6 +2,7 @@ import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { Box, CircularProgress } from '@mui/material';
 import { useAuthStore } from '../store/authStore';
 import { useProfileStore } from '../store/profileStore';
+import { isTrialMode } from '../lib/trial';
 
 import SplashPage from '../pages/SplashPage';
 import OnboardingWizard from '../pages/onboarding/OnboardingWizard';
@@ -49,7 +50,9 @@ function ProtectedRoute() {
 
   const isAdmin = ADMIN_UID && currentUser.uid === ADMIN_UID;
 
-  if (!isAdmin) {
+  // Trial (live-AI demo) users aren't approved by design — let them in anyway;
+  // the backend meters their AI calls.
+  if (!isAdmin && !isTrialMode()) {
     if (approvalStatus === 'pending' || approvalStatus === null) return <Navigate to="/pending-approval" replace />;
     if (approvalStatus === 'rejected') return <Navigate to="/rejected" replace />;
   }
