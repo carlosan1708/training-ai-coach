@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -18,6 +19,7 @@ import {
 } from '@mui/material';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import InsightsIcon from '@mui/icons-material/Insights';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import ScienceIcon from '@mui/icons-material/Science';
@@ -38,6 +40,7 @@ const macroColor = { protein: '#1976d2', carbs: '#f59e0b', fat: '#9c27b0' };
 
 export default function MealsTab({ date }: Props) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { currentUser } = useAuthStore();
   const { profile } = useProfileStore();
   const { log, loading } = useDailyLog(date);
@@ -138,13 +141,19 @@ export default function MealsTab({ date }: Props) {
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', pt: 8 }}><CircularProgress /></Box>;
 
-  // ── Demo mode: feature is real-backend only ──
+  // ── Demo mode: photo analysis is real-backend only, but nutrition history
+  //    is a client-side read that works in demo — keep it reachable here. ──
   if (isDemoMode()) {
     return (
       <Container maxWidth="sm" sx={{ py: 3 }}>
-        <Alert severity="info" icon={<ScienceIcon />}>
-          {t('meals.demoUnavailable')}
-        </Alert>
+        <Stack spacing={2}>
+          <Alert severity="info" icon={<ScienceIcon />}>
+            {t('meals.demoUnavailable')}
+          </Alert>
+          <Button variant="outlined" startIcon={<InsightsIcon />} onClick={() => navigate('/nutrition')}>
+            {t('nutritionHistory.title')}
+          </Button>
+        </Stack>
       </Container>
     );
   }
@@ -160,9 +169,14 @@ export default function MealsTab({ date }: Props) {
         {/* ── Daily totals ── */}
         <Card variant="outlined">
           <CardContent>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-              {t('meals.todayTotals')}
-            </Typography>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+              <Typography variant="subtitle1" fontWeight={600}>
+                {t('meals.todayTotals')}
+              </Typography>
+              <Button size="small" startIcon={<InsightsIcon />} onClick={() => navigate('/nutrition')}>
+                {t('nutritionHistory.title')}
+              </Button>
+            </Stack>
             <Stack spacing={1.5}>
               <TotalBar
                 label={t('meals.calories')}

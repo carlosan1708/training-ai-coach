@@ -13,6 +13,7 @@ import DashboardPage from '../pages/DashboardPage';
 import LogPage from '../pages/LogPage';
 import MealPlansPage from '../pages/MealPlansPage';
 import ChatPage from '../pages/ChatPage';
+import NutritionHistoryPage from '../pages/NutritionHistoryPage';
 import RoutinesPage from '../pages/RoutinesPage';
 import RoutineDetailPage from '../pages/RoutineDetailPage';
 import WorkoutSessionPage from '../pages/WorkoutSessionPage';
@@ -109,6 +110,7 @@ export default function AppRouter() {
           <Route path="/routines/:routineId" element={<RoutineDetailPage />} />
           <Route path="/routines/:routineId/session/:sessionId" element={<WorkoutSessionPage />} />
           <Route path="/plans" element={<MealPlansPage />} />
+          <Route path="/nutrition" element={<NutritionHistoryPage />} />
           <Route path="/chat" element={<ChatPage />} />
         </Route>
       </Route>
