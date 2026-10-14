@@ -300,6 +300,11 @@
   },
   "routines": {
     "title": "Rutinas de Entrenamiento",
+    "trainingDay": "Día de entrenamiento",
+    "dayCount_one": "{{count}} día",
+    "dayCount_other": "{{count}} días",
+    "loadError": "No se pudieron cargar tus entrenamientos. Revisa tu conexión e inténtalo de nuevo.",
+    "retry": "Reintentar",
     "generateAi": "Generar con IA",
     "createManual": "Nueva Rutina",
     "empty": "Aún no hay rutinas. Genera una con IA o crea la tuya.",

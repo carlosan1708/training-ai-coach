@@ -16,11 +16,18 @@ export interface RoutineExercise {
   instructions?: string[];
 }
 
+export interface RoutineDay {
+  id: string;
+  name: string;
+  exercises: RoutineExercise[];
+}
+
 export interface Routine {
   id: string;
   name: string;
   description?: string;
   exercises: RoutineExercise[];
+  days?: RoutineDay[];
   session_count?: number;
   last_session_at?: string; // YYYY-MM-DD
   created_at?: unknown;
@@ -56,6 +63,8 @@ export interface WorkoutSession {
   id: string;
   routine_id: string;
   routine_name: string;
+  day_id?: string;
+  day_name?: string;
   date: string; // YYYY-MM-DD
   status: 'active' | 'completed';
   ai_insight?: string;

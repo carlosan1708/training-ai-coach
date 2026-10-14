@@ -18,6 +18,8 @@ import {
   MenuItem,
   Select,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Tooltip,
   Typography,
@@ -59,6 +61,10 @@ export default function RoutineDetailPage() {
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [selectedDayId, setSelectedDayId] = useState('');
+  const selectedDay = routine?.days?.find(day => day.id === selectedDayId) ?? routine?.days?.[0];
+  const exercises = selectedDay?.exercises ?? routine?.exercises ?? [];
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [editIndex, setEditIndex] = useState<number | null>(null);
@@ -74,6 +80,7 @@ export default function RoutineDetailPage() {
   const refresh = useCallback(async () => {
     if (!currentUser || !routineId) return;
     setLoading(true);
+    setLoadError(false);
     try {
       const [r, s] = await Promise.all([
         getRoutine(currentUser.uid, routineId),
@@ -82,6 +89,8 @@ export default function RoutineDetailPage() {
       setRoutine(r);
       setSessions(s);
       if (r && r.exercises.length && !chartExercise) setChartExercise(r.exercises[0].name);
+    } catch {
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -91,36 +100,44 @@ export default function RoutineDetailPage() {
   useEffect(() => { refresh(); }, [refresh]);
 
   const completed = useMemo(
-    () => sessions.filter((s) => s.status === 'completed'),
-    [sessions]
+    () => sessions.filter((s) => s.status === 'completed' && (!selectedDay || s.day_id === selectedDay.id ||
+      (!s.day_id && s.exercises.some(ex => selectedDay.exercises.some(e => e.name === ex.name))))),
+    [sessions, selectedDay]
   );
   const activeSession = useMemo(
-    () => sessions.find((s) => s.status === 'active'),
-    [sessions]
+    () => sessions.find((s) => s.status === 'active' && (!selectedDay || s.day_id === selectedDay.id ||
+      (!s.day_id && s.exercises.some(ex => selectedDay.exercises.some(e => e.name === ex.name))))),
+    [sessions, selectedDay]
   );
 
   // ── Exercise editing ────────────────────────────────────────────────────────
 
-  const saveExercises = async (exercises: RoutineExercise[]) => {
+  const saveExercises = async (nextExercises: RoutineExercise[]) => {
     if (!currentUser || !routine) return;
-    setRoutine({ ...routine, exercises });
-    await updateRoutine(currentUser.uid, routine.id, { exercises });
+    if (selectedDay && routine.days) {
+      const days = routine.days.map(day => day.id === selectedDay.id ? { ...day, exercises: nextExercises } : day);
+      await updateRoutine(currentUser.uid, routine.id, { days });
+      setRoutine({ ...routine, days, exercises: days.flatMap(day => day.exercises) });
+    } else {
+      await updateRoutine(currentUser.uid, routine.id, { exercises: nextExercises });
+      setRoutine({ ...routine, exercises: nextExercises });
+    }
   };
 
   const addExercise = (ex: RoutineExercise) =>
-    routine && saveExercises([...routine.exercises, ex]);
+    routine && saveExercises([...exercises, ex]);
 
   const updateExercise = (index: number, ex: RoutineExercise) =>
-    routine && saveExercises(routine.exercises.map((e, i) => (i === index ? ex : e)));
+    routine && saveExercises(exercises.map((e, i) => (i === index ? ex : e)));
 
   const removeExercise = (index: number) =>
-    routine && saveExercises(routine.exercises.filter((_, i) => i !== index));
+    routine && saveExercises(exercises.filter((_, i) => i !== index));
 
   const moveExercise = (index: number, delta: number) => {
     if (!routine) return;
     const target = index + delta;
-    if (target < 0 || target >= routine.exercises.length) return;
-    const next = [...routine.exercises];
+    if (target < 0 || target >= exercises.length) return;
+    const next = [...exercises];
     [next[index], next[target]] = [next[target], next[index]];
     saveExercises(next);
   };
@@ -139,7 +156,7 @@ export default function RoutineDetailPage() {
   // ── Start session (AI-adjusted) ─────────────────────────────────────────────
 
   const startSession = async () => {
-    if (!currentUser || !routine || !routine.exercises.length) return;
+    if (!currentUser || !routine || !exercises.length) return;
 
     if (activeSession) {
       navigate(`/routines/${routine.id}/session/${activeSession.id}`);
@@ -155,7 +172,7 @@ export default function RoutineDetailPage() {
     let plan: SessionPlan | null = null;
     try {
       const result = await planSessionFn({
-        routine: { name: routine.name, exercises: routine.exercises },
+        routine: { name: routine.name, exercises },
         recentSessions: completed.slice(0, 6).map((s) => ({
           date: s.date,
           exercises: s.exercises.map((e) => ({ name: e.name, sets: e.sets })),
@@ -166,7 +183,7 @@ export default function RoutineDetailPage() {
       setStartError(t('routines.aiUnavailable'));
     }
 
-    const exercises: SessionExercise[] = routine.exercises.map((ex) => {
+    const sessionExercises: SessionExercise[] = exercises.map((ex) => {
       const planned = plan?.exercises.find(
         (p) => p.name.toLowerCase() === ex.name.toLowerCase()
       );
@@ -199,10 +216,11 @@ export default function RoutineDetailPage() {
       const sessionId = await addWorkoutSession(currentUser.uid, {
         routine_id: routine.id,
         routine_name: routine.name,
+        ...(selectedDay ? { day_id: selectedDay.id, day_name: selectedDay.name } : {}),
         date: today(),
         status: 'active',
         ...(plan?.insight ? { ai_insight: plan.insight } : {}),
-        exercises,
+        exercises: sessionExercises,
       });
       navigate(`/routines/${routine.id}/session/${sessionId}`);
     } catch {
@@ -231,6 +249,13 @@ export default function RoutineDetailPage() {
 
   if (loading) {
     return <Box sx={{ display: 'flex', justifyContent: 'center', pt: 8 }}><CircularProgress /></Box>;
+  }
+  if (loadError) {
+    return <Container maxWidth="md" sx={{ py: 4 }}>
+      <Alert severity="error" action={<Button color="inherit" onClick={refresh}>{t('routines.retry')}</Button>}>
+        {t('routines.loadError')}
+      </Alert>
+    </Container>;
   }
   if (!routine) {
     return (
@@ -262,6 +287,18 @@ export default function RoutineDetailPage() {
           </IconButton>
         </Stack>
 
+        {!!routine.days?.length && (
+          <Tabs value={selectedDay?.id} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile
+            aria-label={t('routines.trainingDay')}
+            onChange={(_, id: string) => {
+              setSelectedDayId(id);
+              setChartExercise(routine.days?.find(day => day.id === id)?.exercises[0]?.name ?? '');
+              setStartError('');
+            }}>
+            {routine.days.map(day => <Tab key={day.id} value={day.id} label={day.name} />)}
+          </Tabs>
+        )}
+
         {/* ── Start session ── */}
         <Button
           variant="contained"
@@ -271,7 +308,7 @@ export default function RoutineDetailPage() {
             ? <CircularProgress size={18} color="inherit" />
             : activeSession ? <PlayArrowIcon /> : <AutoFixHighIcon />}
           onClick={startSession}
-          disabled={starting || routine.exercises.length === 0}
+          disabled={starting || exercises.length === 0}
         >
           {starting
             ? t('routines.aiPlanning')
@@ -281,10 +318,10 @@ export default function RoutineDetailPage() {
 
         {/* ── Exercises ── */}
         <Typography variant="subtitle1" fontWeight={600}>
-          {t('exerciseLog.exercises')} ({routine.exercises.length})
+          {t('exerciseLog.exercises')} ({exercises.length})
         </Typography>
 
-        {routine.exercises.map((ex, idx) => (
+        {exercises.map((ex, idx) => (
           <Card key={`${ex.name}-${idx}`} variant="outlined">
             <CardContent sx={{ '&:last-child': { pb: 2 } }}>
               <Stack direction="row" spacing={2} alignItems="center">
@@ -313,7 +350,7 @@ export default function RoutineDetailPage() {
                   <IconButton aria-label={t('common.moveUp')} size="small" onClick={() => moveExercise(idx, -1)} disabled={idx === 0}>
                     <KeyboardArrowUpIcon fontSize="small" />
                   </IconButton>
-                  <IconButton aria-label={t('common.moveDown')} size="small" onClick={() => moveExercise(idx, 1)} disabled={idx === routine.exercises.length - 1}>
+                  <IconButton aria-label={t('common.moveDown')} size="small" onClick={() => moveExercise(idx, 1)} disabled={idx === exercises.length - 1}>
                     <KeyboardArrowDownIcon fontSize="small" />
                   </IconButton>
                 </Stack>
@@ -347,7 +384,7 @@ export default function RoutineDetailPage() {
                   onChange={(e) => setChartExercise(e.target.value)}
                   size="small" fullWidth sx={{ mb: 2 }}
                 >
-                  {routine.exercises.map((ex) => (
+                  {exercises.map((ex) => (
                     <MenuItem key={ex.name} value={ex.name}>{ex.name}</MenuItem>
                   ))}
                 </Select>
@@ -404,8 +441,8 @@ export default function RoutineDetailPage() {
 
       <ExerciseConfigDialog
         open={editIndex !== null}
-        initial={editIndex !== null ? routine.exercises[editIndex] : null}
-        editableName={editIndex !== null && !routine.exercises[editIndex]?.library_id}
+        initial={editIndex !== null ? exercises[editIndex] : null}
+        editableName={editIndex !== null && !exercises[editIndex]?.library_id}
         onClose={() => setEditIndex(null)}
         onSave={(ex) => { if (editIndex !== null) updateExercise(editIndex, ex); setEditIndex(null); }}
       />

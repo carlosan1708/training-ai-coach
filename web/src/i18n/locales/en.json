@@ -300,6 +300,11 @@
   },
   "routines": {
     "title": "Workout Routines",
+    "trainingDay": "Training day",
+    "dayCount_one": "{{count}} day",
+    "dayCount_other": "{{count}} days",
+    "loadError": "Could not load your workouts. Check your connection and try again.",
+    "retry": "Try again",
     "generateAi": "Generate with AI",
     "createManual": "New Routine",
     "empty": "No routines yet. Generate one with AI or build your own.",

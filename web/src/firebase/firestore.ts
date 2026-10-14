@@ -27,6 +27,7 @@ import type { DailyLog } from '../types/log';
 import type { ChatSession, Message } from '../types/chat';
 import type { Routine, WorkoutSession } from '../types/routine';
 import type { WeeklyReport } from '../types/report';
+import { normalizeRoutine } from '../lib/routine';
 
 const noop = () => {};
 
@@ -246,17 +247,20 @@ export const deleteMealPlan = async (uid: string, planId: string) => {
 // ─── Workout Routines ─────────────────────────────────────────────────────────
 
 export const getRoutines = async (uid: string): Promise<Routine[]> => {
-  if (isDemoMode()) return demoDb.getRoutines();
+  if (isDemoMode()) return demoDb.getRoutines().map(normalizeRoutine);
   const snap = await getDocs(
     query(collection(db, 'users', uid, 'routines'), orderBy('created_at', 'desc'))
   );
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Routine));
+  return snap.docs.map((d) => normalizeRoutine({ ...d.data(), id: d.id } as Routine));
 };
 
 export const getRoutine = async (uid: string, routineId: string): Promise<Routine | null> => {
-  if (isDemoMode()) return demoDb.getRoutine(routineId);
+  if (isDemoMode()) {
+    const routine = demoDb.getRoutine(routineId);
+    return routine ? normalizeRoutine(routine) : null;
+  }
   const snap = await getDoc(doc(db, 'users', uid, 'routines', routineId));
-  return snap.exists() ? ({ id: snap.id, ...snap.data() } as Routine) : null;
+  return snap.exists() ? normalizeRoutine({ ...snap.data(), id: snap.id } as Routine) : null;
 };
 
 export const addRoutine = async (
