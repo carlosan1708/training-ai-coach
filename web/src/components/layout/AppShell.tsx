@@ -77,6 +77,7 @@ export default function AppShell() {
         component="main"
         sx={{
           flexGrow: 1,
+          minWidth: 0,
           pb: isMobile ? 8 : 0,
           overflow: 'auto',
         }}

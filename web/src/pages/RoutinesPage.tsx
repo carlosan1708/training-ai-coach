@@ -38,6 +38,7 @@ export default function RoutinesPage() {
 
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   // AI generation dialog
   const [aiOpen, setAiOpen] = useState(false);
@@ -54,8 +55,11 @@ export default function RoutinesPage() {
   const refresh = useCallback(async () => {
     if (!currentUser) return;
     setLoading(true);
+    setLoadError(false);
     try {
       setRoutines(await getRoutines(currentUser.uid));
+    } catch {
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -168,7 +172,12 @@ export default function RoutinesPage() {
           </Button>
         </Stack>
 
-        {routines.length === 0 && (
+        {loadError && (
+          <Alert severity="error" action={<Button color="inherit" onClick={refresh}>{t('routines.retry')}</Button>}>
+            {t('routines.loadError')}
+          </Alert>
+        )}
+        {!loadError && routines.length === 0 && (
           <Card variant="outlined" sx={{ textAlign: 'center', py: 6 }}>
             <FitnessCenterIcon sx={{ fontSize: 48, color: 'grey.400' }} />
             <Typography color="text.secondary" sx={{ mt: 1 }}>
@@ -179,7 +188,7 @@ export default function RoutinesPage() {
 
         {routines.map((routine) => (
           <Card key={routine.id} variant="outlined" sx={{ display: 'flex', alignItems: 'center' }}>
-            <CardActionArea onClick={() => navigate(`/routines/${routine.id}`)} sx={{ flex: 1 }}>
+            <CardActionArea onClick={() => navigate(`/routines/${routine.id}`)} sx={{ flex: 1, minWidth: 0 }}>
               <CardContent>
                 <Stack direction="row" alignItems="center" spacing={2}>
                   <Stack direction="row" spacing={-1.5}>
@@ -198,7 +207,8 @@ export default function RoutinesPage() {
                         {routine.description}
                       </Typography>
                     )}
-                    <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
+                      {!!routine.days?.length && <Chip size="small" label={t('routines.dayCount', { count: routine.days.length })} />}
                       <Chip size="small" label={t('routines.exerciseCount', { count: routine.exercises.length })} />
                       {(routine.session_count ?? 0) > 0 && (
                         <Chip size="small" label={t('routines.sessionCount', { count: routine.session_count })} />

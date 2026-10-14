@@ -192,6 +192,7 @@ export default function WorkoutSessionPage() {
           <IconButton onClick={() => navigate(`/routines/${routineId}`)}><ArrowBackIcon /></IconButton>
           <Box sx={{ flex: 1 }}>
             <Typography variant="h6" fontWeight={700}>{session.routine_name}</Typography>
+            {session.day_name && <Typography variant="body2">{session.day_name}</Typography>}
             <Typography variant="caption" color="text.secondary">{session.date}</Typography>
           </Box>
           <Chip label={`${progress}%`} color={progress === 100 ? 'success' : 'default'} />
