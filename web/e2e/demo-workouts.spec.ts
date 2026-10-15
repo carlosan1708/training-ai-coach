@@ -34,7 +34,7 @@ test.describe('workout routines', () => {
     await page.goto('/routines');
     page.on('dialog', (d) => d.accept());
     const card = page.locator('.MuiCard-root', { hasText: 'E2E Test Day' });
-    await card.getByTestId('DeleteIcon').click();
+    await card.getByRole('button', { name: 'Delete', exact: true }).click();
     await expect(page.getByText('E2E Test Day')).toHaveCount(0);
   });
 
