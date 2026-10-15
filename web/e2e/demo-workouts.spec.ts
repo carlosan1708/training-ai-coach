@@ -59,6 +59,7 @@ test.describe('workout routines', () => {
     await expect(page.getByText('Progress', { exact: true })).toBeVisible();
     await expect(page.getByText('Session history')).toBeVisible();
 
+    await page.getByRole('checkbox', { name: 'Adjust with AI', exact: true }).check();
     await page.getByRole('button', { name: /Start Workout/ }).click();
     await page.waitForURL('**/session/**', { timeout: 15_000 });
 
