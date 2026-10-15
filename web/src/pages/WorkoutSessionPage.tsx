@@ -11,6 +11,10 @@ import {
   Chip,
   CircularProgress,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   LinearProgress,
   Stack,
@@ -29,7 +33,7 @@ import { serverTimestamp } from 'firebase/firestore';
 import { useAuthStore } from '../store/authStore';
 import {
   getWorkoutSession, updateWorkoutSession, updateRoutine, getRoutine,
-  upsertDailyLog, getDailyLog,
+  upsertDailyLog, getDailyLog, deleteWorkoutSession,
 } from '../firebase/firestore';
 import ExerciseGif from '../components/ExerciseGif';
 import { doneSets, sessionVolume, summarizeSets, topSetWeight } from '../lib/workout';
@@ -51,8 +55,13 @@ export default function WorkoutSessionPage() {
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [finishing, setFinishing] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [saveError, setSaveError] = useState(false);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSave = useRef<Promise<void>>(Promise.resolve());
+  const ending = useRef(false);
 
   useEffect(() => {
     if (!currentUser || !sessionId) return;
@@ -63,16 +72,20 @@ export default function WorkoutSessionPage() {
 
   // Debounced autosave so mid-workout progress is never lost
   const persist = useCallback((next: WorkoutSession) => {
-    if (!currentUser || !sessionId) return;
+    if (!currentUser || !sessionId || ending.current) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      updateWorkoutSession(currentUser.uid, sessionId, { exercises: next.exercises });
+      if (ending.current) return;
+      pendingSave.current = pendingSave.current
+        .then(() => updateWorkoutSession(currentUser.uid, sessionId, { exercises: next.exercises }))
+        .catch(() => { setSaveError(true); });
     }, 800);
   }, [currentUser, sessionId]);
 
   useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
 
   const mutate = (updater: (prev: WorkoutSession) => WorkoutSession) => {
+    if (ending.current || session?.status !== 'active') return;
     setSession((prev) => {
       if (!prev) return prev;
       const next = updater(prev);
@@ -119,10 +132,13 @@ export default function WorkoutSessionPage() {
   // ── Finish ──────────────────────────────────────────────────────────────────
 
   const finish = async () => {
-    if (!currentUser || !session || !sessionId || !routineId) return;
+    if (!currentUser || !session || !sessionId || !routineId || ending.current || session.status !== 'active') return;
+    ending.current = true;
     setFinishing(true);
+    setSaveError(false);
     if (saveTimer.current) clearTimeout(saveTimer.current);
     try {
+      await pendingSave.current;
       const volume = sessionVolume(session.exercises);
       const startedAt = (session.started_at as { toDate?: () => Date } | undefined)?.toDate?.();
       const duration = startedAt
@@ -167,8 +183,30 @@ export default function WorkoutSessionPage() {
       }
 
       navigate(`/routines/${routineId}`);
+    } catch {
+      setSaveError(true);
     } finally {
+      ending.current = false;
       setFinishing(false);
+    }
+  };
+
+  const cancelWorkout = async () => {
+    if (!currentUser || !sessionId || !routineId || session?.status !== 'active' || ending.current) return;
+    ending.current = true;
+    setCancelling(true);
+    setSaveError(false);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    try {
+      // Let any running autosave finish before deletion so it cannot recreate the session.
+      await pendingSave.current;
+      await deleteWorkoutSession(currentUser.uid, sessionId);
+      navigate(`/routines/${routineId}`);
+    } catch {
+      setSaveError(true);
+    } finally {
+      ending.current = false;
+      setCancelling(false);
     }
   };
 
@@ -189,7 +227,8 @@ export default function WorkoutSessionPage() {
 
         {/* ── Header ── */}
         <Stack direction="row" alignItems="center" spacing={1}>
-          <IconButton onClick={() => navigate(`/routines/${routineId}`)}><ArrowBackIcon /></IconButton>
+          <IconButton aria-label={t('common.back')} disabled={finishing || cancelling}
+            onClick={() => navigate(`/routines/${routineId}`)}><ArrowBackIcon /></IconButton>
           <Box sx={{ flex: 1 }}>
             <Typography variant="h6" fontWeight={700}>{session.routine_name}</Typography>
             {session.day_name && <Typography variant="body2">{session.day_name}</Typography>}
@@ -198,6 +237,11 @@ export default function WorkoutSessionPage() {
           <Chip label={`${progress}%`} color={progress === 100 ? 'success' : 'default'} />
         </Stack>
         <LinearProgress variant="determinate" value={progress} sx={{ borderRadius: 1, height: 6 }} />
+        {saveError && <Alert severity="error">{t('common.error')}</Alert>}
+        {session.status === 'active' && <Button variant="outlined" color="error" sx={{ minHeight: 44 }}
+          disabled={finishing || cancelling} onClick={() => setCancelOpen(true)}>
+          {t('routines.cancelSession')}
+        </Button>}
 
         {/* ── AI insight ── */}
         {session.ai_insight && (
@@ -211,6 +255,7 @@ export default function WorkoutSessionPage() {
           <ExerciseCard
             key={`${ex.name}-${exIdx}`}
             exercise={ex}
+            disabled={finishing || cancelling || session.status !== 'active'}
             onSetChange={(setIdx, field, value) => updateSet(exIdx, setIdx, field, value)}
             onAddSet={() => addSet(exIdx)}
           />
@@ -223,11 +268,27 @@ export default function WorkoutSessionPage() {
           size="large"
           startIcon={finishing ? <CircularProgress size={18} color="inherit" /> : <CheckCircleIcon />}
           onClick={finish}
-          disabled={finishing || session.status === 'completed'}
+          disabled={finishing || cancelling || session.status === 'completed'}
         >
           {t('routines.finishSession')}
         </Button>
       </Stack>
+      <Dialog open={cancelOpen} onClose={() => !cancelling && setCancelOpen(false)} fullWidth maxWidth="xs"
+        aria-labelledby="cancel-workout-title">
+        <DialogTitle id="cancel-workout-title">{t('routines.cancelSessionTitle')}</DialogTitle>
+        <DialogContent>
+          <Typography>{t('routines.cancelSessionHint')}</Typography>
+          {saveError && <Alert severity="error" sx={{ mt: 2 }}>{t('common.error')}</Alert>}
+        </DialogContent>
+        <DialogActions disableSpacing sx={{ flexDirection: { xs: 'column-reverse', sm: 'row' }, gap: 1,
+          alignItems: { xs: 'stretch', sm: 'center' } }}>
+          <Button sx={{ minHeight: 44 }} disabled={cancelling} onClick={() => setCancelOpen(false)}>{t('routines.keepSession')}</Button>
+          <Button variant="contained" color="error" sx={{ minHeight: 44 }} disabled={cancelling} onClick={cancelWorkout}
+            startIcon={cancelling ? <CircularProgress size={16} color="inherit" /> : undefined}>
+            {t('routines.discardSession')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }
@@ -236,11 +297,12 @@ export default function WorkoutSessionPage() {
 
 interface CardProps {
   exercise: SessionExercise;
+  disabled: boolean;
   onSetChange: (setIdx: number, field: 'reps' | 'weight_kg' | 'done', value: number | boolean) => void;
   onAddSet: () => void;
 }
 
-function ExerciseCard({ exercise: ex, onSetChange, onAddSet }: CardProps) {
+function ExerciseCard({ exercise: ex, disabled, onSetChange, onAddSet }: CardProps) {
   const { t } = useTranslation();
   const allDone = ex.sets.length > 0 && ex.sets.every((s) => s.done);
 
@@ -283,6 +345,7 @@ function ExerciseCard({ exercise: ex, onSetChange, onAddSet }: CardProps) {
               </Typography>
               <TextField
                 type="number"
+                disabled={disabled}
                 size="small"
                 value={set.weight_kg || ''}
                 onChange={(e) => onSetChange(setIdx, 'weight_kg', Number(e.target.value))}
@@ -292,6 +355,7 @@ function ExerciseCard({ exercise: ex, onSetChange, onAddSet }: CardProps) {
               />
               <TextField
                 type="number"
+                disabled={disabled}
                 size="small"
                 value={set.reps || ''}
                 onChange={(e) => onSetChange(setIdx, 'reps', Number(e.target.value))}
@@ -301,6 +365,7 @@ function ExerciseCard({ exercise: ex, onSetChange, onAddSet }: CardProps) {
               />
               <Box sx={{ flex: 1 }} />
               <Checkbox
+                disabled={disabled}
                 checked={set.done}
                 onChange={(e) => onSetChange(setIdx, 'done', e.target.checked)}
                 icon={<CheckCircleIcon color="disabled" />}
@@ -309,7 +374,7 @@ function ExerciseCard({ exercise: ex, onSetChange, onAddSet }: CardProps) {
             </Stack>
           ))}
 
-          <Button size="small" startIcon={<AddIcon />} onClick={onAddSet} sx={{ alignSelf: 'flex-start' }}>
+          <Button size="small" disabled={disabled} startIcon={<AddIcon />} onClick={onAddSet} sx={{ alignSelf: 'flex-start' }}>
             {t('routines.addSet')}
           </Button>
         </Stack>

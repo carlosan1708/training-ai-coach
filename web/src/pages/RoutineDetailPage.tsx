@@ -8,12 +8,14 @@ import {
   Card,
   CardContent,
   Chip,
+  Checkbox,
   CircularProgress,
   Container,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   IconButton,
   MenuItem,
   Select,
@@ -31,7 +33,6 @@ import EditIcon from '@mui/icons-material/Edit';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import TimerIcon from '@mui/icons-material/Timer';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip as ChartTooltip,
@@ -72,12 +73,14 @@ export default function RoutineDetailPage() {
   const [metaName, setMetaName] = useState('');
   const [metaDesc, setMetaDesc] = useState('');
   const [editingDayId, setEditingDayId] = useState<string | null>(null);
+  const [addingDay, setAddingDay] = useState(false);
   const [dayName, setDayName] = useState('');
   const [savingDay, setSavingDay] = useState(false);
   const [dayError, setDayError] = useState(false);
 
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState('');
+  const [adjustWithAi, setAdjustWithAi] = useState(false);
 
   const [chartExercise, setChartExercise] = useState('');
 
@@ -157,15 +160,27 @@ export default function RoutineDetailPage() {
     });
   };
 
-  const saveDayName = async () => {
-    if (!currentUser || !routine?.days || !editingDayId || !dayName.trim() || savingDay) return;
+  const saveDay = async () => {
+    if (!currentUser || !routine || (!addingDay && !editingDayId) || !dayName.trim() || savingDay) return;
     setSavingDay(true);
     setDayError(false);
-    const days = routine.days.map(day => day.id === editingDayId ? { ...day, name: dayName.trim() } : day);
+    const existingDays = routine.days?.length ? routine.days : [{
+      id: crypto.randomUUID(), name: t('routines.defaultDayName', { number: 1 }), exercises: routine.exercises,
+    }];
+    const newDay = addingDay ? { id: crypto.randomUUID(), name: dayName.trim(), exercises: [] } : null;
+    const days = newDay ? [...existingDays, newDay]
+      : existingDays.map(day => day.id === editingDayId ? { ...day, name: dayName.trim() } : day);
     try {
       await updateRoutine(currentUser.uid, routine.id, { days });
-      setRoutine({ ...routine, days });
+      setRoutine({ ...routine, days, exercises: days.flatMap(day => day.exercises) });
+      if (newDay) {
+        setSelectedDayId(newDay.id);
+        setChartExercise('');
+        setStartError('');
+        setAdjustWithAi(false);
+      }
       setEditingDayId(null);
+      setAddingDay(false);
     } catch {
       setDayError(true);
     } finally {
@@ -188,19 +203,21 @@ export default function RoutineDetailPage() {
 
     const lastSession = completed[0];
 
-    // AI plan — falls back to routine/last-session targets when unavailable
+    // Use the saved targets unless the user explicitly requests AI adjustments.
     let plan: SessionPlan | null = null;
-    try {
-      const result = await planSessionFn({
-        routine: { name: routine.name, exercises },
-        recentSessions: completed.slice(0, 6).map((s) => ({
-          date: s.date,
-          exercises: s.exercises.map((e) => ({ name: e.name, sets: e.sets })),
-        })),
-      });
-      plan = result.data.plan;
-    } catch {
-      setStartError(t('routines.aiUnavailable'));
+    if (adjustWithAi) {
+      try {
+        const result = await planSessionFn({
+          routine: { name: routine.name, exercises },
+          recentSessions: completed.slice(0, 6).map((s) => ({
+            date: s.date,
+            exercises: s.exercises.map((e) => ({ name: e.name, sets: e.sets })),
+          })),
+        });
+        plan = result.data.plan;
+      } catch {
+        setStartError(t('routines.aiUnavailable'));
+      }
     }
 
     const sessionExercises: SessionExercise[] = exercises.map((ex) => {
@@ -307,8 +324,10 @@ export default function RoutineDetailPage() {
           </IconButton>
         </Stack>
 
-        {!!routine.days?.length && (
+        <Stack direction="row" alignItems="center" spacing={1}>
+          {!!routine.days?.length && (
           <Tabs value={selectedDay?.id} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile
+            sx={{ flex: 1, minWidth: 0 }}
             aria-label={t('routines.trainingDay')}
             onChange={(_, id: string) => {
               setSelectedDayId(id);
@@ -317,7 +336,14 @@ export default function RoutineDetailPage() {
             }}>
             {routine.days.map(day => <Tab key={day.id} value={day.id} label={day.name} />)}
           </Tabs>
-        )}
+          )}
+          <Button startIcon={<AddIcon />} sx={{ minHeight: 44, flexShrink: 0 }} onClick={() => {
+            setAddingDay(true);
+            setEditingDayId(null);
+            setDayName(t('routines.defaultDayName', { number: (routine.days?.length || 1) + 1 }));
+            setDayError(false);
+          }}>{t('routines.addDay')}</Button>
+        </Stack>
 
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
           <Button variant="outlined" startIcon={<AddIcon />} onClick={() => setPickerOpen(true)}
@@ -327,6 +353,7 @@ export default function RoutineDetailPage() {
           {selectedDay && (
             <Button variant="outlined" startIcon={<EditIcon />} sx={{ minHeight: 44, flex: 1 }}
               onClick={() => {
+                setAddingDay(false);
                 setEditingDayId(selectedDay.id);
                 setDayName(selectedDay.name);
                 setDayError(false);
@@ -337,18 +364,23 @@ export default function RoutineDetailPage() {
         </Stack>
 
         {/* ── Start session ── */}
+        {!activeSession && <FormControlLabel
+          control={<Checkbox checked={adjustWithAi} onChange={(_, checked) => setAdjustWithAi(checked)}
+            disabled={starting || exercises.length === 0} />}
+          label={t('routines.adjustWithAi')}
+        />}
         <Button
           variant="contained"
           size="large"
           color={activeSession ? 'warning' : 'primary'}
           startIcon={starting
             ? <CircularProgress size={18} color="inherit" />
-            : activeSession ? <PlayArrowIcon /> : <AutoFixHighIcon />}
+            : <PlayArrowIcon />}
           onClick={startSession}
           disabled={starting || exercises.length === 0}
         >
           {starting
-            ? t('routines.aiPlanning')
+            ? t(adjustWithAi ? 'routines.aiPlanning' : 'routines.startingSession')
             : activeSession ? t('routines.resumeSession') : t('routines.startSession')}
         </Button>
         {startError && <Alert severity="info">{startError}</Alert>}
@@ -357,6 +389,7 @@ export default function RoutineDetailPage() {
         <Typography variant="subtitle1" fontWeight={600}>
           {t('exerciseLog.exercises')} ({exercises.length})
         </Typography>
+        {exercises.length === 0 && <Alert severity="info">{t('routines.emptyDay')}</Alert>}
 
         {exercises.map((ex, idx) => (
           <Card key={`${ex.name}-${idx}`} variant="outlined">
@@ -466,17 +499,19 @@ export default function RoutineDetailPage() {
       </Stack>
 
       {/* ── Dialogs ── */}
-      <Dialog open={editingDayId !== null} onClose={() => !savingDay && setEditingDayId(null)}
+      <Dialog open={addingDay || editingDayId !== null} onClose={() => {
+        if (!savingDay) { setEditingDayId(null); setAddingDay(false); }
+      }}
         fullWidth maxWidth="xs" aria-labelledby="edit-day-title">
-        <Box component="form" onSubmit={(event) => { event.preventDefault(); saveDayName(); }}>
-          <DialogTitle id="edit-day-title">{t('routines.editDayName')}</DialogTitle>
+        <Box component="form" onSubmit={(event) => { event.preventDefault(); saveDay(); }}>
+          <DialogTitle id="edit-day-title">{t(addingDay ? 'routines.addDay' : 'routines.editDayName')}</DialogTitle>
           <DialogContent>
             <TextField autoFocus fullWidth label={t('routines.dayName')} value={dayName}
               onChange={(event) => setDayName(event.target.value)} disabled={savingDay} sx={{ mt: 1 }} />
             {dayError && <Alert severity="error" sx={{ mt: 2 }}>{t('common.error')}</Alert>}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setEditingDayId(null)} disabled={savingDay}>{t('common.cancel')}</Button>
+            <Button onClick={() => { setEditingDayId(null); setAddingDay(false); }} disabled={savingDay}>{t('common.cancel')}</Button>
             <Button variant="contained" type="submit" disabled={savingDay || !dayName.trim()}
               startIcon={savingDay ? <CircularProgress size={16} color="inherit" /> : undefined}>
               {t('common.save')}
