@@ -301,6 +301,8 @@
   "routines": {
     "title": "Workout Routines",
     "trainingDay": "Training day",
+    "editDayName": "Edit day name",
+    "dayName": "Day name",
     "dayCount_one": "{{count}} day",
     "dayCount_other": "{{count}} days",
     "loadError": "Could not load your workouts. Check your connection and try again.",

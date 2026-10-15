@@ -79,3 +79,62 @@ test('starts and resumes only the selected day, keeping other days separate', as
   await page.waitForURL('**/session/**');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tac_demo_db')!).sessions.length)).toBe(1);
 });
+
+test('day controls stay above long exercise lists; renaming preserves days and sessions', async ({ page }) => {
+  await multiDayRoutine(page);
+  await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('tac_demo_db')!);
+    db.routines[0].days[1].exercises = Array.from({ length: 12 }, (_, i) => ({
+      name: `Leg exercise ${i + 1}`, sets: 3, reps: 10,
+    }));
+    db.sessions = [{ id: 'history', routine_id: 'multi-day', day_id: 'lower', day_name: 'Lower day',
+      date: '2026-01-01', status: 'completed', exercises: [] }];
+    localStorage.setItem('tac_demo_db', JSON.stringify(db));
+  });
+  await page.getByText('Two Day Plan', { exact: true }).tap();
+  await page.getByRole('tab', { name: 'Lower day' }).tap();
+  const add = page.getByRole('button', { name: 'Add exercise', exact: true });
+  const rename = page.getByRole('button', { name: 'Edit day name', exact: true });
+  await expect(add).toBeInViewport();
+  await expect(rename).toBeInViewport();
+  await page.screenshot({ path: test.info().outputPath('day-controls-mobile.png') });
+  await rename.tap();
+  const dialog = page.getByRole('dialog', { name: 'Edit day name' });
+  await dialog.getByLabel('Day name').fill('   ');
+  await expect(dialog.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
+  await dialog.getByLabel('Day name').fill('Discard this');
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).tap();
+  await expect(page.getByRole('tab', { name: 'Lower day' })).toBeVisible();
+  await rename.tap();
+  await dialog.getByLabel('Day name').fill('  Legs and core  ');
+  await page.screenshot({ path: test.info().outputPath('rename-day-mobile.png') });
+  await dialog.getByRole('button', { name: 'Save', exact: true }).tap();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('tab', { name: 'Legs and core', selected: true })).toBeVisible();
+  await add.tap();
+  await page.getByRole('button', { name: 'Add custom exercise' }).tap();
+  await page.getByLabel('Exercise name').fill('Added to renamed day');
+  await page.getByRole('button', { name: 'Save', exact: true }).tap();
+  await expect(page.getByText('Added to renamed day', { exact: true })).toBeVisible();
+  await page.reload();
+  await page.getByRole('tab', { name: 'Legs and core' }).tap();
+  await expect(page.getByText('Added to renamed day', { exact: true })).toBeVisible();
+  const db = await page.evaluate(() => JSON.parse(localStorage.getItem('tac_demo_db')!));
+  expect(db.routines[0].days[0].name).toBe('Upper day');
+  expect(db.routines[0].days[0].exercises.map((e: { name: string }) => e.name)).toEqual(['Bench Press']);
+  expect(db.routines[0].days[1].id).toBe('lower');
+  expect(db.routines[0].days[1].name).toBe('Legs and core');
+  expect(db.routines[0].days[1].exercises).toHaveLength(13);
+  expect(db.sessions[0].day_name).toBe('Lower day');
+  expect(db.routines[0].exercises).toBeUndefined();
+  await page.getByRole('button', { name: 'Language', exact: true }).tap();
+  await page.getByRole('menuitem', { name: 'Español' }).tap();
+  await page.setViewportSize({ width: 844, height: 390 });
+  await expect(page.getByRole('button', { name: 'Añadir ejercicio', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Editar nombre del día', exact: true }).tap();
+  const spanishDialog = page.getByRole('dialog', { name: 'Editar nombre del día' });
+  await expect(spanishDialog.getByLabel('Nombre del día')).toHaveValue('Legs and core');
+  await expect(spanishDialog.getByRole('button', { name: 'Guardar', exact: true })).toBeInViewport();
+  await page.screenshot({ path: test.info().outputPath('rename-day-landscape.png') });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});

@@ -71,6 +71,10 @@ export default function RoutineDetailPage() {
   const [metaOpen, setMetaOpen] = useState(false);
   const [metaName, setMetaName] = useState('');
   const [metaDesc, setMetaDesc] = useState('');
+  const [editingDayId, setEditingDayId] = useState<string | null>(null);
+  const [dayName, setDayName] = useState('');
+  const [savingDay, setSavingDay] = useState(false);
+  const [dayError, setDayError] = useState(false);
 
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState('');
@@ -151,6 +155,22 @@ export default function RoutineDetailPage() {
       name: updated.name,
       description: updated.description,
     });
+  };
+
+  const saveDayName = async () => {
+    if (!currentUser || !routine?.days || !editingDayId || !dayName.trim() || savingDay) return;
+    setSavingDay(true);
+    setDayError(false);
+    const days = routine.days.map(day => day.id === editingDayId ? { ...day, name: dayName.trim() } : day);
+    try {
+      await updateRoutine(currentUser.uid, routine.id, { days });
+      setRoutine({ ...routine, days });
+      setEditingDayId(null);
+    } catch {
+      setDayError(true);
+    } finally {
+      setSavingDay(false);
+    }
   };
 
   // ── Start session (AI-adjusted) ─────────────────────────────────────────────
@@ -299,6 +319,23 @@ export default function RoutineDetailPage() {
           </Tabs>
         )}
 
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+          <Button variant="outlined" startIcon={<AddIcon />} onClick={() => setPickerOpen(true)}
+            sx={{ minHeight: 44, flex: 1 }}>
+            {t('routines.addExercise')}
+          </Button>
+          {selectedDay && (
+            <Button variant="outlined" startIcon={<EditIcon />} sx={{ minHeight: 44, flex: 1 }}
+              onClick={() => {
+                setEditingDayId(selectedDay.id);
+                setDayName(selectedDay.name);
+                setDayError(false);
+              }}>
+              {t('routines.editDayName')}
+            </Button>
+          )}
+        </Stack>
+
         {/* ── Start session ── */}
         <Button
           variant="contained"
@@ -369,10 +406,6 @@ export default function RoutineDetailPage() {
           </Card>
         ))}
 
-        <Button variant="outlined" startIcon={<AddIcon />} onClick={() => setPickerOpen(true)}>
-          {t('routines.addExercise')}
-        </Button>
-
         {/* ── Progress ── */}
         {completed.length > 0 && (
           <>
@@ -433,6 +466,24 @@ export default function RoutineDetailPage() {
       </Stack>
 
       {/* ── Dialogs ── */}
+      <Dialog open={editingDayId !== null} onClose={() => !savingDay && setEditingDayId(null)}
+        fullWidth maxWidth="xs" aria-labelledby="edit-day-title">
+        <Box component="form" onSubmit={(event) => { event.preventDefault(); saveDayName(); }}>
+          <DialogTitle id="edit-day-title">{t('routines.editDayName')}</DialogTitle>
+          <DialogContent>
+            <TextField autoFocus fullWidth label={t('routines.dayName')} value={dayName}
+              onChange={(event) => setDayName(event.target.value)} disabled={savingDay} sx={{ mt: 1 }} />
+            {dayError && <Alert severity="error" sx={{ mt: 2 }}>{t('common.error')}</Alert>}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setEditingDayId(null)} disabled={savingDay}>{t('common.cancel')}</Button>
+            <Button variant="contained" type="submit" disabled={savingDay || !dayName.trim()}
+              startIcon={savingDay ? <CircularProgress size={16} color="inherit" /> : undefined}>
+              {t('common.save')}
+            </Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
       <ExercisePickerDialog
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
