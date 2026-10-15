@@ -301,6 +301,8 @@
   "routines": {
     "title": "Rutinas de Entrenamiento",
     "trainingDay": "Día de entrenamiento",
+    "editDayName": "Editar nombre del día",
+    "dayName": "Nombre del día",
     "dayCount_one": "{{count}} día",
     "dayCount_other": "{{count}} días",
     "loadError": "No se pudieron cargar tus entrenamientos. Revisa tu conexión e inténtalo de nuevo.",
