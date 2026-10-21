@@ -11,11 +11,13 @@ import {
 } from '@mui/material';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { signInWithGoogle } from '../firebase/auth';
 import { createUserStatus } from '../firebase/firestore';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { enableDemoMode } from '../demo';
+import { enableTrialMode, seedTrialData } from '../lib/trial';
 
 export default function SplashPage() {
   const { t } = useTranslation();
@@ -43,6 +45,24 @@ export default function SplashPage() {
     } catch {
       setError(t('auth.errors.generic'));
     } finally {
+      setLoading(false);
+    }
+  };
+
+  // Live-AI demo: sign in, seed the sample data into the user's own Firestore
+  // so the real (metered) AI has context, then drop into the app. `fresh` skips
+  // the seed and sends them to onboarding to build their own data.
+  const handleTrial = async (fresh = false) => {
+    setLoading(true);
+    setError('');
+    try {
+      const cred = await signInWithGoogle();
+      enableTrialMode();
+      if (!fresh) await seedTrialData(cred.user.uid);
+      // Full reload so the auth/profile listeners start with the seeded data.
+      window.location.assign(fresh ? '/onboarding' : '/dashboard');
+    } catch {
+      setError(t('auth.errors.generic'));
       setLoading(false);
     }
   };
@@ -103,6 +123,37 @@ export default function SplashPage() {
           >
             {t('auth.googleSignIn')}
           </Button>
+
+          <Button
+            variant="contained"
+            size="large"
+            onClick={() => handleTrial(false)}
+            disabled={loading}
+            startIcon={<AutoAwesomeIcon />}
+            sx={{
+              bgcolor: 'rgba(255,255,255,0.16)',
+              color: 'white',
+              fontWeight: 700,
+              px: 4,
+              py: 1.4,
+              backdropFilter: 'blur(2px)',
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.26)' },
+            }}
+          >
+            {t('splash.tryRealAi')}
+          </Button>
+          <Typography variant="caption" sx={{ opacity: 0.7, mt: -2 }}>
+            {t('splash.realAiHint')}{' '}
+            <Box
+              component="span"
+              role="button"
+              tabIndex={0}
+              onClick={() => !loading && handleTrial(true)}
+              sx={{ textDecoration: 'underline', cursor: 'pointer', '&:hover': { opacity: 1 } }}
+            >
+              {t('splash.startFresh')}
+            </Box>
+          </Typography>
 
           <Button
             variant="outlined"

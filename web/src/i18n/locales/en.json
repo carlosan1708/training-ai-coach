@@ -8,7 +8,14 @@
     "signIn": "Sign In",
     "createAccount": "Create Account",
     "tryDemo": "Try the demo",
-    "demoHint": "No account needed — explore with sample data"
+    "demoHint": "No account needed — explore with sample data",
+    "tryRealAi": "Try with real AI",
+    "realAiHint": "Sign in with Google — real AI on sample data, limited daily.",
+    "startFresh": "start fresh"
+  },
+  "trial": {
+    "banner": "Live AI demo — real AI on sample data, limited per day.",
+    "exit": "Exit"
   },
   "auth": {
     "email": "Email",
@@ -130,7 +137,23 @@
     "settings": "Settings",
     "admin": "Admin",
     "workouts": "Workouts",
+    "nutrition": "Nutrition",
     "language": "Language"
+  },
+  "nutritionHistory": {
+    "title": "Nutrition history",
+    "range7": "7 days",
+    "range30": "30 days",
+    "range90": "90 days",
+    "avgCalories": "Avg calories/day",
+    "avgProtein": "Avg protein/day",
+    "daysLogged": "Days logged",
+    "daysOnTarget": "Days on target",
+    "caloriesChart": "Calories vs target",
+    "macrosChart": "Macros",
+    "pastDays": "Past days",
+    "empty": "No meals logged yet. Start logging to see trends.",
+    "target": "Target"
   },
   "dashboard": {
     "welcome": "Welcome, {{name}}!",

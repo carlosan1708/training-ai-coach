@@ -4,6 +4,7 @@ import { BottomNavigation, BottomNavigationAction, Paper } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
+import InsightsIcon from '@mui/icons-material/Insights';
 import ChatIcon from '@mui/icons-material/Chat';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useAuthStore } from '../../store/authStore';
@@ -15,6 +16,7 @@ const baseNavItems = [
   { labelKey: 'nav.dashboard', value: '/dashboard', icon: <DashboardIcon /> },
   { labelKey: 'nav.log',       value: '/log',       icon: <EditNoteIcon /> },
   { labelKey: 'nav.workouts',  value: '/routines',  icon: <FitnessCenterIcon /> },
+  { labelKey: 'nav.nutrition', value: '/nutrition', icon: <InsightsIcon /> },
   { labelKey: 'nav.chat',      value: '/chat',      icon: <ChatIcon /> },
 ];
 

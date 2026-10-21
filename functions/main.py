@@ -10,7 +10,7 @@ from email.message import EmailMessage
 
 import firebase_admin
 from firebase_admin import firestore as fs
-from firebase_functions import https_fn, firestore_fn, options
+from firebase_functions import https_fn, firestore_fn, options, pubsub_fn
 from google.cloud.firestore_v1.base_query import FieldFilter
 from firebase_functions.params import SecretParam, StringParam
 from langchain_core.messages import HumanMessage, AIMessage
@@ -18,6 +18,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 from agents.coordinator import build_graph
 from lib.llm import content_text as _content_text
+from lib.quota import enforce_ai_quota, MAX_OUTPUT_TOKENS
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -65,6 +66,7 @@ def chat(req: https_fn.CallableRequest) -> dict:
             code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
             message="Authentication required.",
         )
+    enforce_ai_quota(req.auth.uid)
 
     uid = req.auth.uid
     data = req.data or {}
@@ -176,6 +178,7 @@ def parse_exercise_photo(req: https_fn.CallableRequest) -> dict:
             code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
             message="Authentication required.",
         )
+    enforce_ai_quota(req.auth.uid)
 
     data = req.data or {}
     image_b64: str = data.get("imageData", "")
@@ -190,6 +193,7 @@ def parse_exercise_photo(req: https_fn.CallableRequest) -> dict:
     llm = ChatGoogleGenerativeAI(
         model=GEMINI_MODEL,
         google_api_key=GEMINI_API_KEY.value,
+        max_output_tokens=MAX_OUTPUT_TOKENS,
     )
 
     message = HumanMessage(content=[
@@ -248,6 +252,7 @@ def parse_body_composition_report(req: https_fn.CallableRequest) -> dict:
             code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
             message="Authentication required.",
         )
+    enforce_ai_quota(req.auth.uid)
 
     data = req.data or {}
     image_b64: str = data.get("imageData", "")
@@ -262,6 +267,7 @@ def parse_body_composition_report(req: https_fn.CallableRequest) -> dict:
     llm = ChatGoogleGenerativeAI(
         model=GEMINI_MODEL,
         google_api_key=GEMINI_API_KEY.value,
+        max_output_tokens=MAX_OUTPUT_TOKENS,
     )
 
     message = HumanMessage(content=[
@@ -392,6 +398,7 @@ def generate_routine(req: https_fn.CallableRequest) -> dict:
             code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
             message="Authentication required.",
         )
+    enforce_ai_quota(req.auth.uid)
 
     uid = req.auth.uid
     data = req.data or {}
@@ -430,6 +437,7 @@ def generate_routine(req: https_fn.CallableRequest) -> dict:
     llm = ChatGoogleGenerativeAI(
         model=GEMINI_MODEL,
         google_api_key=GEMINI_API_KEY.value,
+        max_output_tokens=MAX_OUTPUT_TOKENS,
     )
     response = _invoke_llm(llm, [HumanMessage(content=prompt)])
     routine = _extract_json(_content_text(response))
@@ -457,6 +465,7 @@ def plan_workout_session(req: https_fn.CallableRequest) -> dict:
             code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
             message="Authentication required.",
         )
+    enforce_ai_quota(req.auth.uid)
 
     uid = req.auth.uid
     data = req.data or {}
@@ -556,6 +565,7 @@ def plan_workout_session(req: https_fn.CallableRequest) -> dict:
     llm = ChatGoogleGenerativeAI(
         model=GEMINI_MODEL,
         google_api_key=GEMINI_API_KEY.value,
+        max_output_tokens=MAX_OUTPUT_TOKENS,
     )
     response = _invoke_llm(llm, [HumanMessage(content=prompt)])
     plan = _extract_json(_content_text(response))
@@ -673,6 +683,7 @@ def _generate_weekly_report(uid: str, db, stats: dict | None = None) -> dict:
     llm = ChatGoogleGenerativeAI(
         model=GEMINI_MODEL,
         google_api_key=GEMINI_API_KEY.value,
+        max_output_tokens=MAX_OUTPUT_TOKENS,
     )
     response = _invoke_llm(llm, [HumanMessage(content=prompt)])
     narrative = _extract_json(_content_text(response))
@@ -702,6 +713,7 @@ def generate_weekly_report(req: https_fn.CallableRequest) -> dict:
             code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
             message="Authentication required.",
         )
+    enforce_ai_quota(req.auth.uid)
     return {"report": _generate_weekly_report(req.auth.uid, fs.client())}
 
 
@@ -718,6 +730,7 @@ def analyze_meal_photo(req: https_fn.CallableRequest) -> dict:
             code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
             message="Authentication required.",
         )
+    enforce_ai_quota(req.auth.uid)
 
     data = req.data or {}
     image_b64: str = data.get("imageData", "")
@@ -732,6 +745,7 @@ def analyze_meal_photo(req: https_fn.CallableRequest) -> dict:
     llm = ChatGoogleGenerativeAI(
         model=GEMINI_MODEL,
         google_api_key=GEMINI_API_KEY.value,
+        max_output_tokens=MAX_OUTPUT_TOKENS,
     )
 
     message = HumanMessage(content=[
@@ -848,6 +862,7 @@ def extract_meal_plan_content(req: https_fn.CallableRequest) -> dict:
             code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
             message="Authentication required.",
         )
+    enforce_ai_quota(req.auth.uid)
 
     data = req.data or {}
     image_b64: str = data.get("imageData", "")
@@ -883,6 +898,7 @@ def extract_meal_plan_content(req: https_fn.CallableRequest) -> dict:
     llm = ChatGoogleGenerativeAI(
         model=GEMINI_MODEL,
         google_api_key=GEMINI_API_KEY.value,
+        max_output_tokens=MAX_OUTPUT_TOKENS,
     )
 
     if text_content:
@@ -913,3 +929,46 @@ def extract_meal_plan_content(req: https_fn.CallableRequest) -> dict:
         content = {"error": "no_data"}
 
     return {"content": content}
+
+
+# ─── Billing budget killswitch ────────────────────────────────────────────────
+# A Cloud Billing budget (Billing → Budgets & alerts) can publish to a Pub/Sub
+# topic on every threshold crossing. This function listens on that topic and,
+# once spend reaches the budget, disables the live-AI demo by flipping the
+# killswitch that lib/quota.py honors — so a runaway can't keep spending.
+#
+# Billing data lags a few hours and native budgets are monthly, so this is the
+# coarse *dollar* backstop; the per-day call caps in lib/quota.py do the
+# real-time daily limiting. Set the budget to a comfortable monthly ceiling
+# (e.g. ~30× your daily target).
+#
+# Setup:
+#   1. gcloud pubsub topics create billing-alerts        (name must match below)
+#   2. Billing → Budgets & alerts → your budget → Manage notifications →
+#      "Connect a Pub/Sub topic" → billing-alerts
+#   3. To resume after a pause, set app_config/demo_ai.enabled = true.
+_BILLING_TOPIC = "billing-alerts"
+
+
+@pubsub_fn.on_message_published(topic=_BILLING_TOPIC)
+def on_billing_alert(
+    event: pubsub_fn.CloudEvent[pubsub_fn.MessagePublishedData],
+) -> None:
+    data = event.data.message.json or {}
+    cost = float(data.get("costAmount") or 0)
+    budget = float(data.get("budgetAmount") or 0)
+
+    # Budgets also fire at lower thresholds (50%, 90%); only kill at/over 100%.
+    if budget <= 0 or cost < budget:
+        return
+
+    fs.client().document("app_config/demo_ai").set(
+        {
+            "enabled": False,
+            "disabled_reason": "billing_budget_exceeded",
+            "disabled_cost": cost,
+            "disabled_budget": budget,
+            "disabled_at": fs.SERVER_TIMESTAMP,
+        },
+        merge=True,
+    )

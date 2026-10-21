@@ -1,5 +1,6 @@
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Box, Card, CardContent, Chip, LinearProgress, Stack, Typography } from '@mui/material';
+import { Box, Card, CardActionArea, CardContent, Chip, LinearProgress, Stack, Typography } from '@mui/material';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import { useProfileStore } from '../../store/profileStore';
 import { useDailyLog } from '../../hooks/useDailyLog';
@@ -11,6 +12,7 @@ const today = new Date().toISOString().split('T')[0];
 /** At-a-glance nutrition for today. Real-backend feature — hidden in demo. */
 export default function NutritionCard() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { profile } = useProfileStore();
   const { log } = useDailyLog(today);
 
@@ -27,6 +29,7 @@ export default function NutritionCard() {
 
   return (
     <Card variant="outlined">
+      <CardActionArea onClick={() => navigate('/nutrition')}>
       <CardContent>
         <Stack spacing={1.5}>
           <Stack direction="row" alignItems="center" spacing={1}>
@@ -64,6 +67,7 @@ export default function NutritionCard() {
           </Box>
         </Stack>
       </CardContent>
+      </CardActionArea>
     </Card>
   );
 }

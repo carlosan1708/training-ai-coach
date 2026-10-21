@@ -16,6 +16,7 @@ from langgraph.graph import StateGraph, START, END
 from .state import CoachState, INTENTS
 from lib.context import build_user_context
 from lib.llm import content_text
+from lib.quota import MAX_OUTPUT_TOKENS
 
 # ─── Shared LLM factory ───────────────────────────────────────────────────────
 
@@ -26,7 +27,9 @@ PRO_MODEL = "gemini-pro-latest"
 
 
 def _make_llm(api_key: str, model: str = FLASH_MODEL) -> ChatGoogleGenerativeAI:
-    return ChatGoogleGenerativeAI(model=model, google_api_key=api_key)
+    return ChatGoogleGenerativeAI(
+        model=model, google_api_key=api_key, max_output_tokens=MAX_OUTPUT_TOKENS
+    )
 
 
 # ─── Node factories ──────────────────────────────────────────────────────────

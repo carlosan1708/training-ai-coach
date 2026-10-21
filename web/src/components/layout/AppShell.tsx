@@ -1,12 +1,17 @@
+import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Box, Button, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
+import { Box, Button, CircularProgress, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
 import ScienceIcon from '@mui/icons-material/Science';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import BottomNav from './BottomNav';
 import Sidebar from './Sidebar';
 import LanguageSwitcher from './LanguageSwitcher';
 import { isDemoMode, disableDemoMode } from '../../demo';
+import { isTrialMode, disableTrialMode, clearTrialData } from '../../lib/trial';
+import { signOut } from '../../firebase/auth';
+import { useAuthStore } from '../../store/authStore';
 
 function DemoBanner() {
   const { t } = useTranslation();
@@ -37,6 +42,52 @@ function DemoBanner() {
       </Typography>
       <Button size="small" color="inherit" variant="outlined" onClick={exit}>
         {t('demo.exit')}
+      </Button>
+    </Stack>
+  );
+}
+
+/** Live-AI trial: real (metered) AI on seeded sample data. Exit wipes the
+ *  seeded data and signs out. */
+function TrialBanner() {
+  const { t } = useTranslation();
+  const { currentUser } = useAuthStore();
+  const [exiting, setExiting] = useState(false);
+
+  const exit = async () => {
+    setExiting(true);
+    try {
+      if (currentUser) await clearTrialData(currentUser.uid);
+    } catch {
+      /* best effort — still sign out */
+    }
+    disableTrialMode();
+    await signOut();
+    window.location.assign('/');
+  };
+
+  return (
+    <Stack
+      direction="row"
+      alignItems="center"
+      spacing={1}
+      sx={{
+        px: 2, py: 0.5,
+        bgcolor: 'primary.main',
+        color: 'primary.contrastText',
+        position: 'sticky', top: 0,
+        zIndex: (theme) => theme.zIndex.appBar,
+      }}
+    >
+      <AutoAwesomeIcon fontSize="small" />
+      <Typography variant="body2" sx={{ flex: 1 }}>
+        {t('trial.banner')}
+      </Typography>
+      <Button
+        size="small" color="inherit" variant="outlined" onClick={exit} disabled={exiting}
+        startIcon={exiting ? <CircularProgress size={14} color="inherit" /> : undefined}
+      >
+        {t('trial.exit')}
       </Button>
     </Stack>
   );
@@ -83,6 +134,7 @@ export default function AppShell() {
         }}
       >
         {isDemoMode() && <DemoBanner />}
+        {isTrialMode() && <TrialBanner />}
         {isMobile && <MobileHeader />}
         <Outlet />
       </Box>

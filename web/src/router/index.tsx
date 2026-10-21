@@ -2,6 +2,7 @@ import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { Box, CircularProgress } from '@mui/material';
 import { useAuthStore } from '../store/authStore';
 import { useProfileStore } from '../store/profileStore';
+import { isTrialMode } from '../lib/trial';
 
 import SplashPage from '../pages/SplashPage';
 import OnboardingWizard from '../pages/onboarding/OnboardingWizard';
@@ -13,6 +14,7 @@ import DashboardPage from '../pages/DashboardPage';
 import LogPage from '../pages/LogPage';
 import MealPlansPage from '../pages/MealPlansPage';
 import ChatPage from '../pages/ChatPage';
+import NutritionHistoryPage from '../pages/NutritionHistoryPage';
 import RoutinesPage from '../pages/RoutinesPage';
 import RoutineDetailPage from '../pages/RoutineDetailPage';
 import WorkoutSessionPage from '../pages/WorkoutSessionPage';
@@ -48,7 +50,9 @@ function ProtectedRoute() {
 
   const isAdmin = ADMIN_UID && currentUser.uid === ADMIN_UID;
 
-  if (!isAdmin) {
+  // Trial (live-AI demo) users aren't approved by design — let them in anyway;
+  // the backend meters their AI calls.
+  if (!isAdmin && !isTrialMode()) {
     if (approvalStatus === 'pending' || approvalStatus === null) return <Navigate to="/pending-approval" replace />;
     if (approvalStatus === 'rejected') return <Navigate to="/rejected" replace />;
   }
@@ -109,6 +113,7 @@ export default function AppRouter() {
           <Route path="/routines/:routineId" element={<RoutineDetailPage />} />
           <Route path="/routines/:routineId/session/:sessionId" element={<WorkoutSessionPage />} />
           <Route path="/plans" element={<MealPlansPage />} />
+          <Route path="/nutrition" element={<NutritionHistoryPage />} />
           <Route path="/chat" element={<ChatPage />} />
         </Route>
       </Route>

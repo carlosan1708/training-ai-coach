@@ -7,6 +7,7 @@ import {
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import ChatIcon from '@mui/icons-material/Chat';
+import InsightsIcon from '@mui/icons-material/Insights';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -22,6 +23,7 @@ const navItems = [
   { labelKey: 'nav.dashboard', path: '/dashboard', icon: <DashboardIcon /> },
   { labelKey: 'nav.log',       path: '/log',       icon: <EditNoteIcon /> },
   { labelKey: 'nav.workouts',  path: '/routines',  icon: <FitnessCenterIcon /> },
+  { labelKey: 'nav.nutrition', path: '/nutrition', icon: <InsightsIcon /> },
   { labelKey: 'nav.chat',      path: '/chat',      icon: <ChatIcon /> },
 ];
 
