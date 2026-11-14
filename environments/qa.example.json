@@ -1,0 +1,20 @@
+{
+  "environment": "qa",
+  "projectId": "REPLACE_WITH_QA_FIREBASE_PROJECT_ID",
+  "region": "us-central1",
+  "storageBucket": "REPLACE_WITH_QA_STORAGE_BUCKET",
+  "hostingUrl": "https://REPLACE_WITH_QA_FIREBASE_PROJECT_ID.web.app",
+  "runtimeServiceAccount": "training-coach-ai@REPLACE_WITH_QA_FIREBASE_PROJECT_ID.iam.gserviceaccount.com",
+  "openaiProjectId": "REPLACE_WITH_QA_OPENAI_PROJECT_ID",
+  "openaiIdentityProviderId": "REPLACE_WITH_QA_OPENAI_PROVIDER_ID",
+  "openaiServiceAccountId": "REPLACE_WITH_QA_OPENAI_SERVICE_ACCOUNT_ID",
+  "openaiAudience": "https://api.openai.com/v1",
+  "firebaseWebConfig": {
+    "apiKey": "REPLACE_WITH_FIREBASE_WEB_API_KEY",
+    "authDomain": "REPLACE_WITH_QA_FIREBASE_PROJECT_ID.firebaseapp.com",
+    "appId": "REPLACE_WITH_QA_FIREBASE_APP_ID",
+    "messagingSenderId": "REPLACE_WITH_QA_SENDER_ID"
+  },
+  "openaiGeneralModel": "gpt-5.6-terra",
+  "openaiAnalysisModel": "gpt-5.6-terra"
+}

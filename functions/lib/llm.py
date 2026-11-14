@@ -2,14 +2,7 @@
 
 
 def content_text(message) -> str:
-    """
-    Flatten an LLM reply to plain text.
-
-    Gemini 3 models are thinking models: LangChain surfaces `.content` as a
-    list of blocks (reasoning signatures alongside the answer) instead of the
-    plain string the 2.x models returned. Calling `.strip()` on that list is
-    a TypeError, so every read of `.content` goes through here.
-    """
+    """Flatten text messages while retaining legacy block-content compatibility."""
     content = getattr(message, "content", message)
     if isinstance(content, str):
         return content

@@ -29,7 +29,8 @@ test.describe('landing & dashboard', () => {
     await expect(page.getByText('Weekly AI Report')).toBeVisible();
     await expect(page.getByText('WINS')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('NEXT WEEK')).toBeVisible();
-    await expect(page.getByText(/kg lifted/)).toBeVisible();
+    await expect(page.getByText(/kg lifted/)).toHaveCount(0);
+    await expect(page.getByText(/completed sets\./)).toBeVisible();
   });
 
   test('exit demo returns to the landing page and clears data', async ({ page }) => {
@@ -39,5 +40,17 @@ test.describe('landing & dashboard', () => {
     await expect(page.getByText('Try the demo')).toBeVisible();
     const flag = await page.evaluate(() => localStorage.getItem('tac_demo_mode'));
     expect(flag).toBeNull();
+  });
+});
+
+test.describe('demo local calendar dates', () => {
+  test.use({ timezoneId: 'America/Costa_Rica' });
+  test('an evening demo seeds today rather than the next UTC date', async ({ page }) => {
+    await page.clock.install({ time: new Date('2026-10-18T02:00:00Z') });
+    await enterDemo(page);
+    await expect(page.getByRole('heading', { name: '77.2 kg', exact: true })).toBeVisible();
+    const dates = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('tac_demo_db')!).logs));
+    expect(dates).toContain('2026-10-17');
+    expect(dates.every(date => date <= '2026-10-17')).toBe(true);
   });
 });

@@ -29,6 +29,7 @@ export default function Step5Language({ draft, onUpdate }: Props) {
         <InputLabel>{t('onboarding.language.uiLanguage')}</InputLabel>
         <Select
           value={draft.ui_language ?? 'en'}
+          inputProps={{ 'aria-label': t('onboarding.language.uiLanguage') }}
           label={t('onboarding.language.uiLanguage')}
           onChange={(e) => handleUiLanguage(e.target.value as 'en' | 'es')}
         >
@@ -41,6 +42,7 @@ export default function Step5Language({ draft, onUpdate }: Props) {
         <InputLabel>{t('onboarding.language.responseLanguage')}</InputLabel>
         <Select
           value={draft.response_language ?? 'en'}
+          inputProps={{ 'aria-label': t('onboarding.language.responseLanguage') }}
           label={t('onboarding.language.responseLanguage')}
           onChange={(e) =>
             onUpdate({ response_language: e.target.value as UserProfile['response_language'] })
@@ -58,6 +60,7 @@ export default function Step5Language({ draft, onUpdate }: Props) {
         <InputLabel>{t('onboarding.language.tone')}</InputLabel>
         <Select
           value={draft.coaching_tone ?? 'friendly'}
+          inputProps={{ 'aria-label': t('onboarding.language.tone') }}
           label={t('onboarding.language.tone')}
           onChange={(e) =>
             onUpdate({ coaching_tone: e.target.value as UserProfile['coaching_tone'] })

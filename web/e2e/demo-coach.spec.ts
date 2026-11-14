@@ -56,7 +56,7 @@ test.describe('AI coach & daily log', () => {
     const checks = page.locator('input[type="checkbox"]');
     for (let i = 0; i < 4; i++) await checks.nth(i).check();
     await page.getByRole('button', { name: 'Finish workout' }).click();
-    await page.waitForURL(/\/routines\/[^/]+$/, { timeout: 15_000 });
+    await page.waitForURL(/\/workout-history\?session=.+&saved=1$/, { timeout: 15_000 });
 
     await page.goto('/log');
     await page.getByRole('tab', { name: 'Exercises' }).click();

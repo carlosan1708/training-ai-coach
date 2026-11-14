@@ -11,13 +11,20 @@ interface Props {
   rounded?: number;
   /** Set false to show only the first frame (e.g. list thumbnails). */
   animate?: boolean;
+  alt?: string;
 }
 
 /**
  * Animated exercise demo. Prefers a real GIF url; otherwise cycles the
  * two library photo frames every 900ms, which reads like a GIF.
  */
-export default function ExerciseGif({ gifUrl, images, size = 72, rounded = 2, animate = true }: Props) {
+export default function ExerciseGif(props: Props) {
+  // A new source gets fresh failure/frame state, including after a broken custom GIF.
+  const source = JSON.stringify([props.gifUrl ?? null, props.images ?? []]);
+  return <ExerciseGifSource key={source} {...props} />;
+}
+
+function ExerciseGifSource({ gifUrl, images, size = 72, rounded = 2, animate = true, alt = 'exercise demo' }: Props) {
   const [frame, setFrame] = useState(0);
   const [failed, setFailed] = useState(false);
 
@@ -35,6 +42,9 @@ export default function ExerciseGif({ gifUrl, images, size = 72, rounded = 2, an
   if (!src || failed) {
     return (
       <Box
+        role={alt ? 'img' : undefined}
+        aria-label={alt || undefined}
+        aria-hidden={!alt || undefined}
         sx={{
           width: size,
           height: size,
@@ -56,7 +66,7 @@ export default function ExerciseGif({ gifUrl, images, size = 72, rounded = 2, an
     <Box
       component="img"
       src={src}
-      alt="exercise demo"
+      alt={alt}
       onError={() => setFailed(true)}
       sx={{
         width: size,

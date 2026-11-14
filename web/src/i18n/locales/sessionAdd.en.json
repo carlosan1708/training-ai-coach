@@ -1,0 +1,17 @@
+{
+  "sessionAdd": {
+    "title": "Add to workout",
+    "scope": "Where to keep this exercise",
+    "onlyThisWorkout": "Only this workout",
+    "alsoInRoutine": "Also save in this routine",
+    "temporaryHint": "You can save it in your routine later, after trying it in this workout.",
+    "routineHint": "It will be available in future workouts, even if you discard this workout.",
+    "dayHint": "It will be added to {{day}} for future workouts, even if you discard this workout.",
+    "saveError": "The exercise could not be saved. Try again or reload the workout.",
+    "saveInRoutine": "Save in routine",
+    "promoteTitle": "Save in routine?",
+    "promoteHint": "Keep this exercise and its current working values for future workouts. Your completed sets will be preserved.",
+    "inRoutine": "Saved in routine",
+    "editorHint": "Exercises added here are only for this workout. You can save them in your routine from the workout screen."
+  }
+}

@@ -14,5 +14,10 @@ class CoachState(TypedDict):
     active_meal_plan: dict
     # Last 7 days of daily log documents (weight, measurements, exercises, photo analysis)
     recent_logs: list
+    # Confirmed measurement memory and actual workout rollups.
+    progress_context: dict
+    chat_memory: dict
+    current_user_message: str
+    memory_updates: list
     # Set by the router node; drives conditional edge to the right agent
     intent: str | None

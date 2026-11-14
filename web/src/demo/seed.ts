@@ -8,6 +8,7 @@ import type { DailyLog } from '../types/log';
 import type { Routine, RoutineExercise, SessionSet, WorkoutSession } from '../types/routine';
 import i18n from '../i18n';
 import { DB_KEY, type DemoDb } from './db';
+import { localDateKey, shiftDateKey } from '../lib/dates';
 
 /** Seed copy follows the UI language so a Spanish user sees a Spanish demo. */
 const es = () => (i18n.language || 'en').startsWith('es');
@@ -18,11 +19,7 @@ const UPPER_NAME = () => L('Upper Body Strength', 'Fuerza de Tren Superior');
 const LOWER_NAME = () => L('Lower Body Power', 'Potencia de Tren Inferior');
 const MEAL_PLAN_NAME = () => L('Hypertrophy Meal Plan', 'Plan de Comidas de Hipertrofia');
 
-const iso = (daysAgo: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() - daysAgo);
-  return d.toISOString().split('T')[0];
-};
+const iso = (daysAgo: number) => shiftDateKey(localDateKey(), -daysAgo);
 
 const PROFILE: UserProfile = {
   name: 'Alex',
@@ -81,6 +78,7 @@ const exercise = (
   muscle_group: lib.muscle,
   images: lib.images,
   library_id: lib.id,
+  load_basis: ['Wide-Grip_Lat_Pulldown', 'Triceps_Pushdown', 'Lying_Leg_Curls'].includes(lib.id) ? 'machine_display' : 'total',
   sets,
   reps,
   weight_kg: weight,
@@ -121,7 +119,7 @@ const buildSession = (
     const inc = ex.weight_kg && ex.weight_kg > 0 ? step * (ex.weight_kg >= 60 ? 5 : 2.5) : 0;
     const weight = (ex.weight_kg ?? 0) + inc;
     return {
-      name: ex.name,
+      name: ex.name, load_basis: ex.load_basis,
       images: ex.images,
       target_sets: ex.sets,
       target_reps: ex.reps,
@@ -133,16 +131,20 @@ const buildSession = (
     (sum, e) => sum + e.sets.reduce((s, st) => s + st.weight_kg * st.reps, 0),
     0
   );
+  const date = iso(daysAgo);
+  const duration = 52 + Math.round(Math.random() * 12);
+  const completedAt = new Date(`${date}T18:00:00`).getTime();
   return {
     routine_id: routineId,
     routine_name: routineName,
-    date: iso(daysAgo),
+    date,
     status: 'completed',
     exercises,
     total_volume_kg: volume,
-    duration_min: 52 + Math.round(Math.random() * 12),
-    started_at: Date.now(),
-    completed_at: Date.now(),
+    duration_min: duration,
+    duration_sec: duration * 60,
+    started_at: completedAt - duration * 60_000,
+    completed_at: completedAt,
   };
 };
 

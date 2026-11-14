@@ -1,24 +1,58 @@
 /**
- * Offline stand-ins for the Gemini cloud functions, used in demo mode.
+ * Offline stand-ins for the OpenAI cloud functions, used in demo mode.
  * The workout planner actually computes progressive overload from the
  * demo session history, so the demo behaves like the real coach.
  */
 import type { ExerciseLogEntry } from '../types/log';
-import type { GeneratedRoutine, RoutineExercise, SessionPlan, SessionSet } from '../types/routine';
+import type { GeneratedRoutine, RoutineExercise, SessionPlan, SessionSet, LoadConvention } from '../types/routine';
+import { compatibleLoadBasis } from '../lib/loadBasis';
 import type { WeeklyReport } from '../types/report';
 import i18n from '../i18n';
 import { topSetWeight, doneSets } from '../lib/workout';
 import { DB_KEY, getRecentLogs, getSessionsSince, saveWeeklyReport } from './db';
 import { LIB } from './seed';
+import { consumeDemoChatMessage } from './chatLimit';
+import { getDemoMemory, rememberDemoMessage } from './coachMemory';
+import type { ChatMemoryStatus } from '../types/coachMemory';
 
 /** Demo AI copy follows the UI language so a Spanish user never sees English. */
 const es = () => (i18n.language || 'en').startsWith('es');
 const L = (en: string, esText: string) => (es() ? esText : en);
 
+/** Offline preview; real alternatives use the account's equipment and restrictions. */
+export const substituteExercise = (exercise: { name: string; sets: number; reps: number; rest_sec?: number }) => {
+  const original = exercise.name.toLowerCase();
+  let name = /squat|sentadilla/.test(original) ? 'Reverse Lunge'
+    : /press|push|pecho/.test(original) ? 'Incline Push-Up'
+    : /curl|bicep/.test(original) ? 'Hammer Curl' : 'Resistance Band Row';
+  if (name.toLowerCase() === original) name = 'Seated Cable Row';
+  return {
+    substitution: { name, sets: exercise.sets, reps: exercise.reps, weight_kg: 0, rest_sec: exercise.rest_sec ?? 90,
+      notes: L('Choose a comfortable starting load for this alternative.', 'Elige una carga inicial cómoda para esta alternativa.') },
+    reason: L('Demo alternative: review the movement and set a suitable load before starting.',
+      'Alternativa de demostración: revisa el movimiento y ajusta la carga antes de empezar.'),
+  };
+};
+
 // ── Chat ────────────────────────────────────────────────────────────────────
 
-export const chat = (message: string): { reply: string } => {
+export const chat = (message: string): { reply: string; memory_status?: ChatMemoryStatus } => {
+  consumeDemoChatMessage();
+  const remembered = rememberDemoMessage(message);
+  if (remembered === 'full') return { reply: L('Your demo memory is full. Review your saved memories to make room.',
+    'Tu memoria de demostración está llena. Revisa los recuerdos guardados para hacer espacio.'), memory_status: 'full' };
+  if (remembered === 'saved') return {
+    reply: L('I saved that in your demo memory. You can review or forget it in **Coach memory**.',
+      'Lo guardé en tu memoria de demostración. Puedes revisarlo u olvidarlo en **Memoria del coach**.'),
+    memory_status: 'saved',
+  };
   const m = message.toLowerCase();
+
+  if (/(what.*remember|remember.*about me|qu[eé].*recuerd|mis recuerdos|my memories)/.test(m)) {
+    const saved = getDemoMemory().facts;
+    return { reply: saved.length ? [L('## What I remember', '## Lo que recuerdo'), ...saved.map(fact => `- ${fact.text}`)].join('\n\n')
+      : L('You have no saved demo memories yet. Tell me “Remember that…” to add one.', 'Todavía no tienes recuerdos de demostración. Dime «Recuerda que…» para añadir uno.') };
+  }
 
   if (/(weight|progress|trend|bmi|measure|peso|progreso)/.test(m)) {
     const logs = Object.values(
@@ -67,10 +101,10 @@ export const chat = (message: string): { reply: string } => {
     reply: L(
       `👋 I'm your AI coach (demo mode). Ask me about your diet ("what should I eat before training?"), ` +
         `your workouts ("should I train today?"), or your progress ("how is my weight trending?"). ` +
-        `In the full app these answers come from Gemini agents with your real data.`,
+        `In the full app these answers come from OpenAI agents with your real data.`,
       `👋 Soy tu coach de IA (modo demo). Pregúntame sobre tu dieta ("¿qué debería comer antes de entrenar?"), ` +
         `tus entrenamientos ("¿debería entrenar hoy?") o tu progreso ("¿cómo va la tendencia de mi peso?"). ` +
-        `En la app completa estas respuestas vienen de agentes Gemini con tus datos reales.`
+        `En la app completa estas respuestas vienen de agentes OpenAI con tus datos reales.`
     ),
   };
 };
@@ -82,6 +116,9 @@ export const generateRoutine = (focus: string): { routine: GeneratedRoutine } =>
   const pick = (entries: (typeof LIB)[keyof typeof LIB][], sets: number[], reps: number[], weights: number[]): GeneratedRoutine['exercises'] =>
     entries.map((e, i) => ({
       name: e.name,
+      ...(e.id === LIB.plank.id ? {} : {
+        load_basis: e.id === LIB.legcurl.id || e.id === LIB.calf.id ? 'machine_display' as const : 'total' as const,
+      }),
       muscle_group: e.muscle,
       sets: sets[i],
       reps: reps[i],
@@ -122,30 +159,31 @@ const daysBetween = (a: string, b: string) =>
 
 export const planWorkoutSession = (
   routine: { name: string; exercises: RoutineExercise[] },
-  recentSessions: { date: string; exercises: { name: string; sets: SessionSet[] }[] }[]
+  recentSessions: { date: string; exercises: (LoadConvention & { name: string; sets: SessionSet[] })[] }[]
 ): { plan: SessionPlan } => {
   const last = recentSessions[0];
 
-  const topFor = (session: (typeof recentSessions)[number] | undefined, name: string) => {
-    const e = session?.exercises.find((x) => x.name.toLowerCase() === name.toLowerCase());
+  const topFor = (session: (typeof recentSessions)[number] | undefined, name: string, basis: LoadConvention['load_basis']) => {
+    const e = session?.exercises.find((x) => x.name.toLowerCase() === name.toLowerCase() && x.load_basis === basis && !x.load_basis_review_required);
     return e ? topSetWeight(e.sets) : 0;
   };
 
   /** Stalled = top weight unchanged across history spanning >= 14 days. */
-  const isStalled = (name: string, currentTop: number) => {
+  const isStalled = (name: string, currentTop: number, basis: LoadConvention['load_basis']) => {
     if (recentSessions.length < 3 || currentTop === 0) return false;
     const oldest = recentSessions[recentSessions.length - 1];
     if (daysBetween(recentSessions[0].date, oldest.date) < 14) return false;
     return recentSessions.every((s) => {
-      const top = topFor(s, name);
+      const top = topFor(s, name, basis);
       return top === 0 || top <= currentTop;
-    }) && topFor(oldest, name) === currentTop;
+    }) && topFor(oldest, name, basis) === currentTop;
   };
 
   const stalledNames: string[] = [];
 
   const exercises = routine.exercises.map((ex) => {
-    const prev = last?.exercises.find((e) => e.name.toLowerCase() === ex.name.toLowerCase());
+    const prev = ex.load_basis && !ex.load_basis_review_required
+      ? last?.exercises.find((e) => e.name.toLowerCase() === ex.name.toLowerCase() && compatibleLoadBasis(ex, e)) : undefined;
     const prevSets = prev ? doneSets(prev.sets) : [];
     const prevTop = prev ? topSetWeight(prev.sets) : 0;
 
@@ -155,7 +193,7 @@ export const planWorkoutSession = (
         change: 'hold' as const, note: L('First session — establish a baseline', 'Primera sesión — establece una base'),
       };
     }
-    if (isStalled(ex.name, prevTop)) {
+    if (isStalled(ex.name, prevTop, ex.load_basis)) {
       stalledNames.push(ex.name);
       return {
         name: ex.name, sets: ex.sets, reps: ex.reps, weight_kg: roundToPlate(prevTop * 0.9),
@@ -220,65 +258,69 @@ const isoDaysAgo = (n: number) => {
 export const generateWeeklyReport = (): { report: WeeklyReport } => {
   const weekStart = isoDaysAgo(6);
   const prevStart = isoDaysAgo(13);
+  const weekEnd = isoDaysAgo(0);
 
-  const thisWeek = getSessionsSince(weekStart);
+  const thisWeek = getSessionsSince(weekStart).filter((s) => s.date <= weekEnd);
   const prevWeek = getSessionsSince(prevStart).filter((s) => s.date < weekStart);
-  const volume = (ss: typeof thisWeek) => ss.reduce((sum, s) => sum + (s.total_volume_kg ?? 0), 0);
+  const completedSets = thisWeek.flatMap((s) => s.exercises.flatMap((e) => doneSets(e.sets)));
+  const volume = (ss: typeof thisWeek) => ss.reduce((sum, s) => sum + s.exercises.reduce((exerciseSum, e) =>
+    exerciseSum + doneSets(e.sets).reduce((setSum, set) => setSum + (set.weight_kg ?? 0) * (set.reps ?? 0), 0), 0), 0);
   const thisVol = Math.round(volume(thisWeek));
   const prevVol = Math.round(volume(prevWeek));
   const volChange = prevVol ? Math.round(((thisVol - prevVol) / prevVol) * 100) : null;
 
-  const weekLogs = getRecentLogs(7).filter((l) => l.weight_kg != null);
+  const recentLogs = getRecentLogs(7).filter((l) => l.date >= weekStart && l.date <= weekEnd);
+  const weekLogs = recentLogs.filter((l) => l.weight_kg != null);
   const wStart = weekLogs[0]?.weight_kg ?? null;
   const wEnd = weekLogs[weekLogs.length - 1]?.weight_kg ?? null;
-  const delta = wStart != null && wEnd != null ? Math.round((wEnd - wStart) * 10) / 10 : null;
-  const energies = getRecentLogs(7).filter((l) => l.energy);
+  const delta = weekLogs.length >= 2 && wStart != null && wEnd != null ? Math.round((wEnd - wStart) * 10) / 10 : null;
+  const energies = recentLogs.filter((l) => l.energy);
   const avgEnergy = energies.length
     ? Math.round((energies.reduce((a, l) => a + l.energy, 0) / energies.length) * 10) / 10
     : null;
 
   const report: WeeklyReport = {
     week_start: weekStart,
-    week_end: isoDaysAgo(0),
+    week_end: weekEnd,
     headline:
       thisWeek.length > 0
         ? L(
-            `Strong week — ${thisWeek.length} session${thisWeek.length > 1 ? 's' : ''}${volChange != null ? `, volume ${volChange >= 0 ? 'up' : 'down'} ${Math.abs(volChange)}%` : ''}`,
-            `Buena semana — ${thisWeek.length} ${thisWeek.length > 1 ? 'sesiones' : 'sesión'}${volChange != null ? `, volumen ${volChange >= 0 ? '+' : '-'}${Math.abs(volChange)}%` : ''}`
+            `Training recorded — ${thisWeek.length} session${thisWeek.length > 1 ? 's' : ''}`,
+            `Entrenamiento registrado — ${thisWeek.length} ${thisWeek.length > 1 ? 'sesiones' : 'sesión'}`
           )
-        : L('A quiet week — let’s restart', 'Una semana tranquila — retomemos'),
+        : L('Build your next reference point', 'Construye tu próxima referencia'),
     summary:
       thisWeek.length > 0
         ? L(
-            `You completed ${thisWeek.length} workout${thisWeek.length > 1 ? 's' : ''} and moved ${thisVol.toLocaleString()} kg in total${volChange != null ? ` (${volChange >= 0 ? '+' : ''}${volChange}% vs last week)` : ''}. ` +
-              `${delta != null ? `Body weight went from ${wStart} kg to ${wEnd} kg (${delta >= 0 ? '+' : ''}${delta} kg) — right on plan for a lean recomposition. ` : ''}` +
-              `Energy averaged ${avgEnergy ?? '—'}/5, so recovery is keeping up with the load.`,
-            `Completaste ${thisWeek.length} entreno${thisWeek.length > 1 ? 's' : ''} y moviste ${thisVol.toLocaleString()} kg en total${volChange != null ? ` (${volChange >= 0 ? '+' : ''}${volChange}% vs la semana pasada)` : ''}. ` +
-              `${delta != null ? `Tu peso pasó de ${wStart} kg a ${wEnd} kg (${delta >= 0 ? '+' : ''}${delta} kg) — justo en línea con una recomposición limpia. ` : ''}` +
-              `La energía promedió ${avgEnergy ?? '—'}/5, así que la recuperación va al ritmo de la carga.`
+            `You recorded ${thisWeek.length} completed workout${thisWeek.length > 1 ? 's' : ''} and ${completedSets.length} completed sets. ` +
+              (delta != null ? `Recorded body weight changed from ${wStart} kg to ${wEnd} kg (${delta >= 0 ? '+' : ''}${delta} kg) within your daily-log source.`
+                : wEnd != null ? `The recorded weight of ${wEnd} kg is a baseline for future readings from the same source.`
+                  : 'These completed sets give your next session a useful reference.'),
+            `Registraste ${thisWeek.length} ${thisWeek.length > 1 ? 'entrenos completados' : 'entreno completado'} y ${completedSets.length} series completadas. ` +
+              (delta != null ? `El peso registrado pasó de ${wStart} kg a ${wEnd} kg (${delta >= 0 ? '+' : ''}${delta} kg) dentro de la misma fuente del registro diario.`
+                : wEnd != null ? `El peso registrado de ${wEnd} kg sirve de referencia para futuras lecturas de la misma fuente.`
+                  : 'Estas series completadas ofrecen una referencia útil para tu próxima sesión.')
           )
         : L(
-            'No sessions were logged this week. Pick your favorite routine and schedule the first session — momentum beats motivation.',
-            'No se registraron sesiones esta semana. Elige tu rutina favorita y agenda la primera sesión — la constancia le gana a la motivación.'
+            (wEnd != null ? `Your daily-log weight of ${wEnd} kg is available as a reference. ` : 'Your sessions and measurements can build a useful view of progress. ') +
+              'Record a completed session or a measurement from your own scale; keep new measurement sources as separate baselines.',
+            (wEnd != null ? `Tu peso de ${wEnd} kg del registro diario está disponible como referencia. ` : 'Tus sesiones y mediciones pueden construir un seguimiento útil del progreso. ') +
+              'Registra una sesión completada o una lectura de tu propia báscula; conserva las fuentes nuevas como referencias separadas.'
           ),
     wins:
       thisWeek.length > 0
         ? [
-            L('Every planned set completed — 100% adherence', 'Todas las series planificadas completadas — 100% de adherencia'),
-            volChange != null && volChange > 0
-              ? L(`Training volume up ${volChange}% week over week`, `Volumen de entrenamiento +${volChange}% respecto a la semana anterior`)
-              : L('Training volume held steady', 'El volumen de entrenamiento se mantuvo estable'),
-            L('Bench press top set climbed again (+2.5 kg)', 'Tu serie top de press de banca volvió a subir (+2,5 kg)'),
+            L(`${thisWeek.length} completed sessions recorded`, `${thisWeek.length} sesiones completadas registradas`),
+            L(`${completedSets.length} completed sets recorded`, `${completedSets.length} series completadas registradas`),
           ]
-        : [L('Your routines and history are ready to pick back up', 'Tus rutinas e historial están listos para retomar')],
+        : wEnd != null ? [L('A daily-log weight reference is available', 'Hay una referencia de peso en el registro diario')] : [],
     focus_next_week: [
-      L('Add one rep to the lat pulldown before adding weight', 'Suma una repetición al jalón al pecho antes de subir peso'),
-      L('Keep protein at ~180 g, especially on rest days', 'Mantén la proteína en ~180 g, sobre todo en días de descanso'),
-      L(`Aim for ${Math.max(thisWeek.length, 3)} sessions again`, `Apunta de nuevo a ${Math.max(thisWeek.length, 3)} sesiones`),
+      L('Record the completed sets from your next planned session, or add a session you already completed.',
+        'Registra las series completadas de tu próxima sesión planificada, o añade una sesión que ya hayas completado.'),
     ],
     stats: {
       week_start: weekStart,
-      week_end: isoDaysAgo(0),
+      week_end: weekEnd,
       sessions: thisWeek.length,
       routines_done: [...new Set(thisWeek.map((s) => s.routine_name))],
       total_volume_kg: thisVol,

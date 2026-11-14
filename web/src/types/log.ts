@@ -1,3 +1,5 @@
+import type { LoadConvention } from './routine';
+
 export interface Measurements {
   waist_cm?: number;
   chest_cm?: number;
@@ -40,11 +42,19 @@ export interface MealAnalysis {
   confidence?: 'low' | 'medium' | 'high';
 }
 
-export interface ExerciseLogEntry {
+export interface ExerciseLogEntry extends LoadConvention {
+  /** Links mirrored workout entries so edits/deletions preserve manual entries. */
+  workout_session_id?: string;
   exercise: string;
+  /** Optional exercise-library identity and demonstration selected by the user. */
+  library_id?: string;
+  gif_url?: string;
+  images?: string[];
   sets?: number;
   reps?: number;
   weight_kg?: number;
+  weight_unit?: 'kg' | 'lb';
+  weight_unit_override?: boolean;
   duration_min?: number;
   notes?: string;
 }
@@ -122,7 +132,7 @@ export interface BodyCompositionReport {
 
 export interface DailyLog {
   date: string;
-  weight_kg?: number;
+  weight_kg?: number | null;
   body_fat_pct?: number;
   measurements: Measurements;
   body_composition_report?: BodyCompositionReport;

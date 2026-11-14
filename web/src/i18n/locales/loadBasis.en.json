@@ -1,0 +1,29 @@
+{
+  "loadBasis": {
+    "label": "How to record weight",
+    "per_dumbbell": "Weight per dumbbell",
+    "total": "Total weight",
+    "machine_display": "Weight shown on the machine",
+    "per_side": "Weight per side",
+    "unknown": "Previous weight convention unconfirmed",
+    "review": "Check the weight for this convention. Previous loads have not been reused automatically.",
+    "help": {
+      "per_dumbbell": "Enter ONE dumbbell's weight. Two 15 lb dumbbells: enter 15 lb. For unilateral work, record reps per arm.",
+      "total": "Two dumbbells: add both weights. Two 15 lb dumbbells: enter 30 lb. Barbell: bar plus plates on both sides. Plate-loaded machine: total added plates; do not guess the machine's unloaded weight.",
+      "machine_display": "Enter the stack or display reading. Do not multiply it by the number of handles or sides.",
+      "per_side": "Enter the load on ONE side. Keep using this convention for this exercise.",
+      "unknown": "Older records did not specify per dumbbell, per side or total. Their saved numbers are preserved."
+    },
+    "changeHint": "Changing the convention does not convert saved loads. Re-enter the working weight or check it during the next workout.",
+    "mixed": "Weight conventions differ or are unconfirmed. Compare loads only within the same confirmed convention; recorded volume uses entered weight × reps.",
+    "recordedChoiceHint": "This choice describes the numbers in this exercise for this workout. It does not convert weights or change other workouts or the routine.",
+    "activeChoiceHint": "Confirms what these weights mean without converting them. This choice and your entered weights are saved for future workouts. Discarding this workout restores the previous defaults.",
+    "clearChoice": "Leave unconfirmed",
+    "recordedReference": "Recorded weight reference",
+    "recordedSet": "Set {{number}}: {{weight}}",
+    "recordedConvention": "Recorded convention: {{convention}}",
+    "recordedDate": "Recorded on {{date}}",
+    "referenceOnly": "Reference only. These weights are not current workout defaults.",
+    "useRecordedWeights": "Use recorded weights with this convention"
+  }
+}

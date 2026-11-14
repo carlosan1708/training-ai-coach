@@ -27,6 +27,11 @@ import { upsertDailyLog } from '../../firebase/firestore';
 import { parseExercisePhotoFn as parseExercisePhoto } from '../../firebase/callables';
 import { useDailyLog } from '../../hooks/useDailyLog';
 import type { ExerciseLogEntry } from '../../types/log';
+import WeightField from '../../components/WeightField';
+import RepsField from '../../components/RepsField';
+import ExerciseAutocomplete from '../../components/ExerciseAutocomplete';
+import { useProfileStore } from '../../store/profileStore';
+import { getExerciseWeightUnit } from '../../lib/units';
 
 interface Props { date: string }
 
@@ -41,7 +46,8 @@ const emptyExercise = (): ExerciseLogEntry => ({
 export default function ExerciseTab({ date }: Props) {
   const { t } = useTranslation();
   const { currentUser } = useAuthStore();
-  const { log, loading } = useDailyLog(date);
+  const profile = useProfileStore(state => state.profile);
+  const { log, loading, error, retry } = useDailyLog(date);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [entries, setEntries] = useState<ExerciseLogEntry[]>([emptyExercise()]);
@@ -50,10 +56,11 @@ export default function ExerciseTab({ date }: Props) {
   const [analyzeError, setAnalyzeError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState(false);
 
   useEffect(() => {
-    if (log?.exercise_log?.length) setEntries(log.exercise_log);
-  }, [log]);
+    if (!loading) setEntries(log?.exercise_log?.length ? log.exercise_log : [emptyExercise()]);
+  }, [log, loading]);
 
   // ── Photo handling ────────────────────────────────────────────────────────
 
@@ -99,8 +106,9 @@ export default function ExerciseTab({ date }: Props) {
   // ── Save ──────────────────────────────────────────────────────────────────
 
   const handleSave = async () => {
-    if (!currentUser) return;
+    if (!currentUser || loading || error) return;
     setSaving(true);
+    setSaveError(false);
     try {
       const validEntries = entries.filter((e) => e.exercise.trim());
       await upsertDailyLog(currentUser.uid, date, {
@@ -109,16 +117,21 @@ export default function ExerciseTab({ date }: Props) {
         ...(!log ? { date, created_at: serverTimestamp() } : {}),
       });
       setSaved(true);
+    } catch {
+      setSaveError(true);
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', pt: 8 }}><CircularProgress /></Box>;
+  if (error) return <Container maxWidth="sm" sx={{ py: 3 }}><Alert severity="error"
+    action={<Button onClick={retry}>{t('routines.retry')}</Button>}>{t('common.error')}</Alert></Container>;
 
   return (
     <Container maxWidth="sm" sx={{ py: 3 }}>
       <Stack spacing={3}>
+        {saveError && <Alert severity="error">{t('common.error')}</Alert>}
 
         {/* ── Photo capture section ── */}
         <Card variant="outlined" sx={{ bgcolor: 'grey.50' }}>
@@ -190,12 +203,18 @@ export default function ExerciseTab({ date }: Props) {
             <CardContent>
               <Stack spacing={2}>
                 <Stack direction="row" alignItems="center" spacing={1}>
-                  <TextField
+                  <ExerciseAutocomplete
                     label={t('exerciseLog.exercise')}
                     value={entry.exercise}
-                    onChange={(e) => updateEntry(idx, 'exercise', e.target.value)}
-                    fullWidth
-                    size="small"
+                    disabled={saving}
+                    gifUrl={entry.gif_url} images={entry.images}
+                    onChange={exercise => setEntries(previous => previous.map((item, index) => index === idx
+                      ? { ...item, exercise,
+                        ...(exercise !== item.exercise ? { library_id: undefined, gif_url: undefined, images: undefined } : {}) }
+                      : item))}
+                    onSelect={selected => setEntries(previous => previous.map((item, index) => index === idx
+                      ? { ...item, exercise: selected.name, library_id: selected.id, images: [...selected.images], gif_url: undefined }
+                      : item))}
                   />
                   <Tooltip title={t('exerciseLog.remove')}>
                     <IconButton size="small" color="error" onClick={() => removeEntry(idx)}>
@@ -205,7 +224,7 @@ export default function ExerciseTab({ date }: Props) {
                 </Stack>
 
                 <Grid container spacing={1}>
-                  <Grid size={{ xs: 4 }}>
+                  <Grid size={{ xs: 6 }}>
                     <TextField
                       label={t('exerciseLog.sets')}
                       type="number"
@@ -215,25 +234,20 @@ export default function ExerciseTab({ date }: Props) {
                       inputProps={{ min: 0 }}
                     />
                   </Grid>
-                  <Grid size={{ xs: 4 }}>
-                    <TextField
+                  <Grid size={{ xs: 6 }}>
+                    <RepsField
                       label={t('exerciseLog.reps')}
-                      type="number"
-                      value={entry.reps ?? ''}
-                      onChange={(e) => updateEntry(idx, 'reps', Number(e.target.value))}
-                      size="small" fullWidth
-                      inputProps={{ min: 0 }}
+                      value={entry.reps}
+                      onChange={reps => updateEntry(idx, 'reps', reps)}
                     />
                   </Grid>
-                  <Grid size={{ xs: 4 }}>
-                    <TextField
-                      label={t('exerciseLog.weightKg')}
-                      type="number"
-                      value={entry.weight_kg ?? ''}
-                      onChange={(e) => updateEntry(idx, 'weight_kg', Number(e.target.value))}
-                      size="small" fullWidth
-                      inputProps={{ min: 0, step: 0.5 }}
-                    />
+                  <Grid size={{ xs: 12 }}>
+                    <WeightField valueKg={entry.weight_kg}
+                      unit={getExerciseWeightUnit(profile, entry)}
+                      onUnitChange={unit => setEntries(previous => previous.map((item, index) =>
+                        index === idx ? { ...item, weight_unit: unit, weight_unit_override: true } : item))}
+                      onChange={kilograms => setEntries(previous => previous.map((item, index) =>
+                        index === idx ? { ...item, weight_kg: kilograms } : item))} />
                   </Grid>
                 </Grid>
 

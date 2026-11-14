@@ -1,37 +1,51 @@
-# Node dependencies
-node_modules/
-web/node_modules/
-
-# Build outputs
-web/dist/
-sample/
-
-# Python
-functions/venv/
-functions/__pycache__/
-functions/**/__pycache__/
-functions/*.pyc
-functions/.python-version
-
-# Environment secrets
-web/.env.local
+# Environment files and local credential material
+.env
+.env.*
+.secret
+.secret.*
+!.env.example
+!.env.*.example
+!.secret.*.example
 *.local
+*.local.json
+*.pem
+*.key
+*.p12
+*.pfx
+service-account*.json
+serviceAccount*.json
+credentials.json
+application_default_credentials.json
 
-# Firebase
+# Firebase and private local artifacts
+/.firebaserc
 .firebase/
-firebase-debug.log
-firebase-debug.*.log
-.firebaserc
+/.qa/
+/.codex-remote-attachments/
+/sample/
+*-debug.log
+*-debug.*.log
 
-# OS
+# JavaScript dependencies, builds and browser test artifacts
+node_modules/
+/web/dist/
+/web/dist-ssr/
+/web/test-results/
+/web/test-results-*/
+/web/playwright-report/
+
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+/functions/.python-version
+
+# Editor and OS files
 .DS_Store
 Thumbs.db
-
-# Editor
 .vscode/
 .idea/
 .claude/
 *.swp
-
-# Function secrets
-functions/.env

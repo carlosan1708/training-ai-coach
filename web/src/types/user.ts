@@ -1,10 +1,10 @@
 export interface UserProfile {
   // Identity
   name: string;
-  age: number;
-  biological_sex: 'male' | 'female' | 'other';
-  height_cm: number;
-  goal_weight_kg: number;
+  age?: number;
+  biological_sex?: 'male' | 'female' | 'other';
+  height_cm?: number;
+  goal_weight_kg?: number;
 
   // Diet
   dietary_style: 'omnivore' | 'vegetarian' | 'vegan' | 'other';
@@ -20,6 +20,10 @@ export interface UserProfile {
   training_days_per_week: number;
   session_length_min: number;
   movement_restrictions: string;
+  /** Routine selected for Today. Null clears the explicit preference. */
+  preferred_routine_id?: string | null;
+  /** Unit for exercise loads, independent of body-weight measurements. */
+  workout_weight_unit?: 'kg' | 'lb';
 
   // Health
   health_notes: string;

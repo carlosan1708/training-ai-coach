@@ -1,0 +1,10 @@
+import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { root } from './environment.mjs';
+const localPython = resolve(root, process.platform === 'win32' ? 'functions/venv/Scripts/python.exe' : 'functions/venv/bin/python');
+const python = existsSync(localPython) ? localPython : process.env.PYTHON ?? 'python';
+const env = { ...process.env, PYTHONPATH: resolve(root, 'functions'), GCLOUD_PROJECT: 'demo-training-coach', APP_ENV: 'test' };
+delete env.SSLKEYLOGFILE;
+const result = spawnSync(python, ['-m', 'unittest', 'discover', '-s', 'functions/tests', '-v'], { cwd: root, env, stdio: 'inherit' });
+process.exit(result.status ?? 1);

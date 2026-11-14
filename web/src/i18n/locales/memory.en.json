@@ -1,0 +1,30 @@
+{
+  "coachMemory": {
+    "open": "Coach memory",
+    "title": "What your coach remembers",
+    "personal": "About you",
+    "progress": "Your progress",
+    "hint": "The coach can remember useful things you tell it across conversations: goals, preferences and constraints. Review them here, or tell the coach when something changes.",
+    "empty": "No personal memories saved yet.",
+    "add": "Tell the coach something",
+    "draft": "Remember that ",
+    "forget": "Forget",
+    "forgetAll": "Forget all",
+    "confirmTitle": "Forget this memory?",
+    "confirmAll": "Forget all personal memories?",
+    "deleteHint": "This removes the saved memory. Your chat messages, profile and measurements are kept separately.",
+    "cancel": "Cancel",
+    "close": "Close",
+    "error": "Couldn't load the coach's memory. Try again.",
+    "deleteError": "Couldn't remove the memory. Reload and try again.",
+    "retry": "Reload",
+    "saved": "Coach memory updated",
+    "unavailable": "Your reply is ready, but memory couldn't be updated. Tell the coach again later if you want this remembered.",
+    "conflict": "Memory changed during this reply. Review the latest memories before adding it again.",
+    "full": "Your coach's saved memory is full. Forget an old item, then tell the coach what to remember again.",
+    "progressHint": "A factual overview of your full saved history, using daily medians and keeping different sources and methods separate. Your coach uses it for context; it is not a diagnosis.",
+    "progressEmpty": "Save a measurement to start your progress overview.",
+    "progressError": "Couldn't load your progress overview. Try again.",
+    "personalOnly": "Personal memories are separate from your measurement history."
+  }
+}

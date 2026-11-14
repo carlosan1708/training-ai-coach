@@ -9,6 +9,9 @@ export interface WeeklyReportStats {
   weight_start_kg?: number | null;
   weight_end_kg?: number | null;
   weight_delta_kg?: number | null;
+  weight_source?: { source_name: string; method: string; aggregation?: string } | null;
+  completed_sets?: number;
+  weight_day_count?: number;
   avg_energy?: number | null;
 }
 

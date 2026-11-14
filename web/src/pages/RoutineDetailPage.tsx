@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import LoadBasisGuidance, { RecordedLoadReference } from '../components/workouts/LoadBasisGuidance';
+import { loadConvention } from '../lib/loadBasis';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -34,41 +36,61 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import TimerIcon from '@mui/icons-material/Timer';
-import {
-  LineChart, Line, XAxis, YAxis, Tooltip as ChartTooltip,
-  ResponsiveContainer, CartesianGrid,
-} from 'recharts';
+import HistoryIcon from '@mui/icons-material/History';
+import ShowChartIcon from '@mui/icons-material/ShowChart';
+import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import { useAuthStore } from '../store/authStore';
+import { useProfileStore } from '../store/profileStore';
 import {
-  getRoutine, updateRoutine, getRoutineSessions, addWorkoutSession,
+  getRoutine, updateRoutine, getRoutineSessionsPage, getActiveWorkoutSessions, addWorkoutSession,
 } from '../firebase/firestore';
+import type { RoutineSessionsCursor } from '../firebase/firestore';
 import { planWorkoutSessionFn as planSessionFn } from '../firebase/callables';
 import ExerciseGif from '../components/ExerciseGif';
 import ExercisePickerDialog from '../components/routines/ExercisePickerDialog';
 import ExerciseConfigDialog from '../components/routines/ExerciseConfigDialog';
-import { findSessionExercise, summarizeSets, topSetWeight, exerciseVolume } from '../lib/workout';
+import ExerciseProgress from '../components/routines/ExerciseProgress';
+import RoutineScheduleControls, { PreferredRoutineButton } from '../components/routines/RoutineScheduleControls';
+import { summarizeSets } from '../lib/workout';
+import { formatWeight, getExerciseWeightUnit, getWorkoutWeightUnit } from '../lib/units';
+import { localDateKey } from '../lib/dates';
+import { findRecordedExerciseReference, resolveExerciseDefaults, sessionMatchesDay } from '../lib/exerciseDefaults';
+import { compareWorkoutSessionsNewestFirst } from '../lib/sessionOrder';
+import { getScheduledWeekdays } from '../lib/trainingSchedule';
+import { routineProgressChoices } from '../lib/routineProgress';
+import { buildWorkoutExercises, prepareSavedWorkout } from '../lib/startWorkout';
 import type {
-  Routine, RoutineExercise, SessionExercise, SessionPlan, WorkoutSession,
+  Routine, RoutineExercise, SessionPlan, WorkoutSession,
 } from '../types/routine';
 
-const today = () => new Date().toISOString().split('T')[0];
+const today = localDateKey;
 
 export default function RoutineDetailPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const progressView = searchParams.get('view') === 'progress';
   const { routineId } = useParams<{ routineId: string }>();
   const { currentUser } = useAuthStore();
+  const profile = useProfileStore(state => state.profile);
+  const defaultWeightUnit = getWorkoutWeightUnit(profile);
 
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [selectedDayId, setSelectedDayId] = useState('');
+  const [historyCursor, setHistoryCursor] = useState<RoutineSessionsCursor | null>(null);
+  const [hasEarlierSessions, setHasEarlierSessions] = useState(false);
+  const [loadingEarlier, setLoadingEarlier] = useState(false);
+  const [earlierError, setEarlierError] = useState(false);
+  const loadGeneration = useRef(0);
+  const selectedDayId = searchParams.get('day') ?? '';
   const selectedDay = routine?.days?.find(day => day.id === selectedDayId) ?? routine?.days?.[0];
   const exercises = selectedDay?.exercises ?? routine?.exercises ?? [];
 
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [pickerDayId, setPickerDayId] = useState<string | undefined>(undefined);
+  const [editTarget, setEditTarget] = useState<{ dayId?: string; index: number; exerciseId?: string } | null>(null);
   const [metaOpen, setMetaOpen] = useState(false);
   const [metaName, setMetaName] = useState('');
   const [metaDesc, setMetaDesc] = useState('');
@@ -82,47 +104,119 @@ export default function RoutineDetailPage() {
   const [startError, setStartError] = useState('');
   const [adjustWithAi, setAdjustWithAi] = useState(false);
 
-  const [chartExercise, setChartExercise] = useState('');
+  const [requestedChartExercise, setChartExercise] = useState('');
+  // Browser history changes before React commits the next route render.
+  const getCurrentDay = () => {
+    const dayId = new URLSearchParams(window.location.search).get('day');
+    return routine?.days?.find(day => day.id === dayId) ?? routine?.days?.[0];
+  };
+  const setSelectedDayId = (id: string) => {
+    const params = new URLSearchParams(window.location.search);
+    params.set('day', id);
+    setSearchParams(params);
+  };
+  const editExercises = editTarget?.dayId
+    ? routine?.days?.find(day => day.id === editTarget.dayId)?.exercises ?? [] : routine?.exercises ?? [];
+  const editIndex = editTarget?.exerciseId
+    ? editExercises.findIndex(exercise => exercise.id === editTarget.exerciseId) : editTarget?.index;
+  const editedExercise = editIndex != null ? editExercises[editIndex] : undefined;
+  const editDefaults = routine && editTarget && editedExercise && editIndex != null
+    ? resolveExerciseDefaults(routine, editIndex, sessions, editTarget.dayId) : null;
+  const editRecorded = routine && editTarget && editedExercise && editIndex != null
+    ? findRecordedExerciseReference(routine, editIndex, sessions, editTarget.dayId) : undefined;
 
   const refresh = useCallback(async () => {
     if (!currentUser || !routineId) return;
+    const generation = ++loadGeneration.current;
     setLoading(true);
     setLoadError(false);
+    setLoadingEarlier(false);
+    setEarlierError(false);
     try {
-      const [r, s] = await Promise.all([
+      const [r, page, active] = await Promise.all([
         getRoutine(currentUser.uid, routineId),
-        getRoutineSessions(currentUser.uid, routineId),
+        getRoutineSessionsPage(currentUser.uid, routineId),
+        getActiveWorkoutSessions(currentUser.uid),
       ]);
+      if (generation !== loadGeneration.current) return;
       setRoutine(r);
-      setSessions(s);
-      if (r && r.exercises.length && !chartExercise) setChartExercise(r.exercises[0].name);
+      setSessions([...new Map([...page.sessions, ...active.filter(session => session.routine_id === routineId)]
+        .map(session => [session.id, session])).values()].sort(compareWorkoutSessionsNewestFirst));
+      setHistoryCursor(page.cursor);
+      setHasEarlierSessions(page.hasMore);
     } catch {
-      setLoadError(true);
+      if (generation === loadGeneration.current) setLoadError(true);
     } finally {
-      setLoading(false);
+      if (generation === loadGeneration.current) setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, routineId]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+    return () => { loadGeneration.current += 1; };
+  }, [refresh]);
+
+  const loadEarlierSessions = async () => {
+    if (!currentUser || !routineId || !historyCursor || loadingEarlier) return;
+    const generation = loadGeneration.current;
+    setLoadingEarlier(true);
+    setEarlierError(false);
+    try {
+      const page = await getRoutineSessionsPage(currentUser.uid, routineId, historyCursor);
+      if (generation !== loadGeneration.current) return;
+      setSessions(current => [...new Map([...current, ...page.sessions].map(session => [session.id, session]))
+        .values()].sort(compareWorkoutSessionsNewestFirst));
+      setHistoryCursor(page.cursor);
+      setHasEarlierSessions(page.hasMore);
+    } catch {
+      if (generation === loadGeneration.current) setEarlierError(true);
+    } finally {
+      if (generation === loadGeneration.current) setLoadingEarlier(false);
+    }
+  };
 
   const completed = useMemo(
-    () => sessions.filter((s) => s.status === 'completed' && (!selectedDay || s.day_id === selectedDay.id ||
-      (!s.day_id && s.exercises.some(ex => selectedDay.exercises.some(e => e.name === ex.name))))),
-    [sessions, selectedDay]
+    () => routine ? sessions.filter((s) => s.status === 'completed' && sessionMatchesDay(routine, s, selectedDay?.id)) : [],
+    [sessions, routine, selectedDay]
   );
+  const progressChoices = routineProgressChoices(exercises, completed);
+  const chartExercise = progressChoices.find(choice => choice.key === requestedChartExercise)
+    ?? progressChoices[0];
   const activeSession = useMemo(
-    () => sessions.find((s) => s.status === 'active' && (!selectedDay || s.day_id === selectedDay.id ||
-      (!s.day_id && s.exercises.some(ex => selectedDay.exercises.some(e => e.name === ex.name))))),
-    [sessions, selectedDay]
+    () => routine ? sessions.find((s) => s.status === 'active' && sessionMatchesDay(routine, s, selectedDay?.id)) : undefined,
+    [sessions, routine, selectedDay]
   );
+  const latestCompletedDay = useMemo(() => {
+    if (!routine?.days?.length) return undefined;
+    const latest = [...sessions].filter(session => session.status === 'completed')
+      .sort(compareWorkoutSessionsNewestFirst)
+      .find(session => routine.days?.some(day => sessionMatchesDay(routine, session, day.id)));
+    return latest && routine.days.find(day => sessionMatchesDay(routine, latest, day.id));
+  }, [routine, sessions]);
+  const openProgress = (latest = false) => {
+    const params = new URLSearchParams(window.location.search);
+    params.set('view', 'progress');
+    const currentDay = getCurrentDay();
+    const hasCompleted = routine && sessions.some(session => session.status === 'completed'
+      && sessionMatchesDay(routine, session, currentDay?.id));
+    const day = latest || !hasCompleted ? latestCompletedDay ?? currentDay : currentDay;
+    if (day) params.set('day', day.id);
+    setChartExercise('');
+    setSearchParams(params);
+  };
+  const openExercises = () => {
+    const params = new URLSearchParams(window.location.search);
+    params.delete('view');
+    setSearchParams(params);
+  };
 
   // ── Exercise editing ────────────────────────────────────────────────────────
 
-  const saveExercises = async (nextExercises: RoutineExercise[]) => {
+  const saveExercises = async (nextExercises: RoutineExercise[], dayId?: string) => {
     if (!currentUser || !routine) return;
-    if (selectedDay && routine.days) {
-      const days = routine.days.map(day => day.id === selectedDay.id ? { ...day, exercises: nextExercises } : day);
+    if (routine.days?.length) {
+      if (!routine.days.some(day => day.id === dayId)) return;
+      const days = routine.days.map(day => day.id === dayId ? { ...day, exercises: nextExercises } : day);
       await updateRoutine(currentUser.uid, routine.id, { days });
       setRoutine({ ...routine, days, exercises: days.flatMap(day => day.exercises) });
     } else {
@@ -131,22 +225,46 @@ export default function RoutineDetailPage() {
     }
   };
 
-  const addExercise = (ex: RoutineExercise) =>
-    routine && saveExercises([...exercises, ex]);
-
-  const updateExercise = (index: number, ex: RoutineExercise) =>
-    routine && saveExercises(exercises.map((e, i) => (i === index ? ex : e)));
-
-  const removeExercise = (index: number) =>
-    routine && saveExercises(exercises.filter((_, i) => i !== index));
-
-  const moveExercise = (index: number, delta: number) => {
+  const addExercise = (ex: RoutineExercise) => {
     if (!routine) return;
-    const target = index + delta;
-    if (target < 0 || target >= exercises.length) return;
-    const next = [...exercises];
-    [next[index], next[target]] = [next[target], next[index]];
-    saveExercises(next);
+    const targetExercises = pickerDayId
+      ? routine.days?.find(day => day.id === pickerDayId)?.exercises : routine.exercises;
+    if (targetExercises) saveExercises([...targetExercises, ex], pickerDayId);
+  };
+
+  const updateExercise = (ex: RoutineExercise) => {
+    if (editTarget && editedExercise && editIndex != null) {
+      saveExercises(editExercises.map((exercise, index) => index === editIndex ? ex : exercise), editTarget.dayId);
+    }
+  };
+
+  const getCurrentExercise = (exercise: RoutineExercise, index: number) => {
+    const day = getCurrentDay();
+    const currentExercises = day?.exercises ?? routine?.exercises ?? [];
+    // An old rendered row must never act on a different exercise at the same index.
+    const currentIndex = exercise.id ? currentExercises.findIndex(candidate => candidate.id === exercise.id)
+      : day?.id === selectedDay?.id && currentExercises[index] === exercise ? index : -1;
+    return currentIndex >= 0 ? { day, exercises: currentExercises, index: currentIndex } : null;
+  };
+
+  const openExerciseEditor = (exercise: RoutineExercise, index: number) => {
+    const target = getCurrentExercise(exercise, index);
+    if (target) setEditTarget({ dayId: target.day?.id, index: target.index, exerciseId: exercise.id });
+  };
+
+  const removeExercise = (exercise: RoutineExercise, index: number) => {
+    const target = getCurrentExercise(exercise, index);
+    if (target) saveExercises(target.exercises.filter((_, i) => i !== target.index), target.day?.id);
+  };
+
+  const moveExercise = (exercise: RoutineExercise, index: number, delta: number) => {
+    const current = getCurrentExercise(exercise, index);
+    if (!current) return;
+    const target = current.index + delta;
+    if (target < 0 || target >= current.exercises.length) return;
+    const next = [...current.exercises];
+    [next[current.index], next[target]] = [next[target], next[current.index]];
+    saveExercises(next, current.day?.id);
   };
 
   const saveMeta = async () => {
@@ -166,10 +284,15 @@ export default function RoutineDetailPage() {
     setDayError(false);
     const existingDays = routine.days?.length ? routine.days : [{
       id: crypto.randomUUID(), name: t('routines.defaultDayName', { number: 1 }), exercises: routine.exercises,
+      scheduled_weekdays: getScheduledWeekdays(routine),
+      includes_legacy_sessions: true,
     }];
     const newDay = addingDay ? { id: crypto.randomUUID(), name: dayName.trim(), exercises: [] } : null;
     const days = newDay ? [...existingDays, newDay]
-      : existingDays.map(day => day.id === editingDayId ? { ...day, name: dayName.trim() } : day);
+      : existingDays.map(day => day.id === editingDayId ? {
+        ...day, name: dayName.trim(),
+        previous_names: [...new Set([...(day.previous_names ?? []), day.name])],
+      } : day);
     try {
       await updateRoutine(currentUser.uid, routine.id, { days });
       setRoutine({ ...routine, days, exercises: days.flatMap(day => day.exercises) });
@@ -191,98 +314,61 @@ export default function RoutineDetailPage() {
   // ── Start session (AI-adjusted) ─────────────────────────────────────────────
 
   const startSession = async () => {
-    if (!currentUser || !routine || !exercises.length) return;
+    if (!currentUser || !routine || starting) return;
 
-    if (activeSession) {
-      navigate(`/routines/${routine.id}/session/${activeSession.id}`);
-      return;
-    }
-
+    // A tab updates browser history before React finishes its route transition.
+    // Start must honor that latest selection even if its button still has the old render.
+    const requestedDay = getCurrentDay();
     setStarting(true);
     setStartError('');
-
-    const lastSession = completed[0];
-
-    // Use the saved targets unless the user explicitly requests AI adjustments.
-    let plan: SessionPlan | null = null;
-    if (adjustWithAi) {
-      try {
-        const result = await planSessionFn({
-          routine: { name: routine.name, exercises },
-          recentSessions: completed.slice(0, 6).map((s) => ({
-            date: s.date,
-            exercises: s.exercises.map((e) => ({ name: e.name, sets: e.sets })),
-          })),
-        });
-        plan = result.data.plan;
-      } catch {
-        setStartError(t('routines.aiUnavailable'));
-      }
-    }
-
-    const sessionExercises: SessionExercise[] = exercises.map((ex) => {
-      const planned = plan?.exercises.find(
-        (p) => p.name.toLowerCase() === ex.name.toLowerCase()
-      );
-      const previous = lastSession && findSessionExercise(lastSession, ex.name);
-
-      const sets = planned?.sets ?? ex.sets;
-      const reps = planned?.reps ?? ex.reps;
-      const weight = planned?.weight_kg ?? ex.weight_kg ?? (previous ? topSetWeight(previous.sets) : 0);
-
-      return {
-        name: ex.name,
-        ...(ex.gif_url ? { gif_url: ex.gif_url } : {}),
-        ...(ex.images ? { images: ex.images } : {}),
-        ...(ex.rest_sec != null ? { rest_sec: ex.rest_sec } : {}),
-        target_sets: sets,
-        target_reps: reps,
-        target_weight_kg: weight ?? 0,
-        ...(planned?.change ? { change: planned.change } : {}),
-        ...(planned?.note ? { ai_note: planned.note } : {}),
-        ...(previous ? { last_summary: summarizeSets(previous.sets) } : {}),
-        sets: Array.from({ length: sets }, () => ({
-          reps,
-          weight_kg: weight ?? 0,
-          done: false,
-        })),
-      };
-    });
-
     try {
+      const { routine: savedRoutine, day: selectedDay, sessions: savedSessions, active } =
+        await prepareSavedWorkout(currentUser.uid, routine, requestedDay);
+      if (active) {
+        navigate(`/routines/${savedRoutine.id}/session/${active.id}`);
+        return;
+      }
+      const exercises = selectedDay?.exercises ?? savedRoutine.exercises;
+      // AI adjustment remains an explicit opt-in after loading saved weights.
+      let plan: SessionPlan | null = null;
+      if (adjustWithAi) {
+        try {
+          const result = await planSessionFn({
+            routine: { name: savedRoutine.name, exercises: exercises.map((exercise, index) => {
+              const defaults = resolveExerciseDefaults(savedRoutine, index, savedSessions, selectedDay?.id);
+              return { ...exercise, reps: defaults.sets[0]?.reps ?? exercise.reps,
+                weight_kg: defaults.sets[0]?.weight_kg ?? exercise.weight_kg,
+                weight_unit: getExerciseWeightUnit(profile, defaults) };
+            }) },
+            recentSessions: [...new Map([...sessions, ...savedSessions].map(session => [session.id, session]))
+              .values()].filter(session => session.status === 'completed'
+              && sessionMatchesDay(savedRoutine, session, selectedDay?.id))
+              .sort(compareWorkoutSessionsNewestFirst).slice(0, 6).map(session => ({
+                date: session.date,
+                exercises: session.exercises.map(exercise => ({ name: exercise.name, ...loadConvention(exercise), sets: exercise.sets })),
+              })),
+          });
+          plan = result.data.plan;
+        } catch {
+          setStartError(t('routines.aiUnavailable'));
+        }
+      }
       const sessionId = await addWorkoutSession(currentUser.uid, {
-        routine_id: routine.id,
-        routine_name: routine.name,
+        routine_id: savedRoutine.id,
+        routine_name: savedRoutine.name,
         ...(selectedDay ? { day_id: selectedDay.id, day_name: selectedDay.name } : {}),
         date: today(),
         status: 'active',
         ...(plan?.insight ? { ai_insight: plan.insight } : {}),
-        exercises: sessionExercises,
+        exercises: buildWorkoutExercises(savedRoutine, savedSessions, selectedDay, profile, plan),
       });
-      navigate(`/routines/${routine.id}/session/${sessionId}`);
+      navigate(`/routines/${savedRoutine.id}/session/${sessionId}`);
     } catch {
       setStartError(t('common.error'));
     } finally {
       setStarting(false);
     }
   };
-
-  // ── Progress chart data ─────────────────────────────────────────────────────
-
-  const chartData = useMemo(() => {
-    if (!chartExercise) return [];
-    return [...completed]
-      .reverse()
-      .map((s) => {
-        const ex = findSessionExercise(s, chartExercise);
-        if (!ex) return null;
-        const top = topSetWeight(ex.sets);
-        const volume = exerciseVolume(ex.sets);
-        if (!top && !volume) return null;
-        return { date: s.date.slice(5), topWeight: top, volume };
-      })
-      .filter(Boolean) as { date: string; topWeight: number; volume: number }[];
-  }, [completed, chartExercise]);
 
   if (loading) {
     return <Box sx={{ display: 'flex', justifyContent: 'center', pt: 8 }}><CircularProgress /></Box>;
@@ -303,17 +389,15 @@ export default function RoutineDetailPage() {
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 3 }}>
+    <Container maxWidth="md" sx={{ py: { xs: 3, md: 4 }, px: { xs: 2, sm: 3 }, pb: 6 }}>
       <Stack spacing={3}>
 
         {/* ── Header ── */}
         <Stack direction="row" alignItems="center" spacing={1}>
           <IconButton aria-label={t('common.back')} onClick={() => navigate('/routines')}><ArrowBackIcon /></IconButton>
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="h6" fontWeight={700} noWrap>{routine.name}</Typography>
-            {routine.description && (
-              <Typography variant="body2" color="text.secondary">{routine.description}</Typography>
-            )}
+            <Typography variant="overline" color="primary">{t('redesign.train.yourRoutine')}</Typography>
+            <Typography component="h1" variant="h4" sx={{ fontSize: { xs: '1.7rem', sm: '2.1rem' }, overflowWrap: 'anywhere' }}>{routine.name}</Typography>
           </Box>
           <IconButton
             size="small"
@@ -324,38 +408,61 @@ export default function RoutineDetailPage() {
           </IconButton>
         </Stack>
 
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+          <PreferredRoutineButton routine={routine} />
+          <Button variant={progressView ? 'outlined' : 'contained'} startIcon={progressView ? <FitnessCenterIcon /> : <ShowChartIcon />}
+            sx={{ minHeight: 44 }} onClick={() => progressView ? openExercises() : openProgress()}>
+            {t(progressView ? 'routines.viewExercises' : 'routines.viewProgress')}
+          </Button>
+          <Button variant="outlined" startIcon={<HistoryIcon />} sx={{ minHeight: 44 }}
+          onClick={() => navigate(`/workout-history?routine=${encodeURIComponent(routine.id)}`)}>
+          {t('workoutHistory.title')}
+          </Button>
+        </Stack>
+
+        {!progressView && routine.description && <Box component="details">
+          <Box component="summary" sx={{ cursor: 'pointer', minHeight: 44, py: 1.25 }}>{t('routines.description')}</Box>
+          <Typography variant="body2" color="text.secondary" sx={{ pt: 1 }}>{routine.description}</Typography>
+        </Box>}
+
         <Stack direction="row" alignItems="center" spacing={1}>
           {!!routine.days?.length && (
           <Tabs value={selectedDay?.id} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile
-            sx={{ flex: 1, minWidth: 0 }}
+            sx={{ flex: 1, minWidth: 0, bgcolor: '#eeebf5', borderRadius: 3, p: 0.5, '& .MuiTabs-indicator': { display: 'none' }, '& .Mui-selected': { bgcolor: '#fff', borderRadius: 2.5, boxShadow: '0 2px 6px #30204c0c' } }}
             aria-label={t('routines.trainingDay')}
             onChange={(_, id: string) => {
               setSelectedDayId(id);
-              setChartExercise(routine.days?.find(day => day.id === id)?.exercises[0]?.name ?? '');
+              setChartExercise('');
               setStartError('');
             }}>
             {routine.days.map(day => <Tab key={day.id} value={day.id} label={day.name} />)}
           </Tabs>
           )}
-          <Button startIcon={<AddIcon />} sx={{ minHeight: 44, flexShrink: 0 }} onClick={() => {
+          {!progressView && <Button startIcon={<AddIcon />} sx={{ minHeight: 44, flexShrink: 0 }} onClick={() => {
             setAddingDay(true);
             setEditingDayId(null);
             setDayName(t('routines.defaultDayName', { number: (routine.days?.length || 1) + 1 }));
             setDayError(false);
-          }}>{t('routines.addDay')}</Button>
+          }}>{t('routines.addDay')}</Button>}
         </Stack>
 
+        {!progressView && <>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-          <Button variant="outlined" startIcon={<AddIcon />} onClick={() => setPickerOpen(true)}
+          <Button variant="outlined" startIcon={<AddIcon />} onClick={() => {
+            setPickerDayId(getCurrentDay()?.id);
+            setPickerOpen(true);
+          }}
             sx={{ minHeight: 44, flex: 1 }}>
             {t('routines.addExercise')}
           </Button>
           {selectedDay && (
             <Button variant="outlined" startIcon={<EditIcon />} sx={{ minHeight: 44, flex: 1 }}
               onClick={() => {
+                const day = getCurrentDay();
+                if (!day) return;
                 setAddingDay(false);
-                setEditingDayId(selectedDay.id);
-                setDayName(selectedDay.name);
+                setEditingDayId(day.id);
+                setDayName(day.name);
                 setDayError(false);
               }}>
               {t('routines.editDayName')}
@@ -364,6 +471,9 @@ export default function RoutineDetailPage() {
         </Stack>
 
         {/* ── Start session ── */}
+        <Box sx={{ bgcolor: '#efe8fc', border: '1px solid #e3d7f7', p: 2.5, borderRadius: 4 }}>
+        <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>{t(activeSession ? 'redesign.train.readyToResume' : 'redesign.train.readyToTrain')}</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{t('redesign.train.sessionHint')}</Typography>
         {!activeSession && <FormControlLabel
           control={<Checkbox checked={adjustWithAi} onChange={(_, checked) => setAdjustWithAi(checked)}
             disabled={starting || exercises.length === 0} />}
@@ -372,18 +482,22 @@ export default function RoutineDetailPage() {
         <Button
           variant="contained"
           size="large"
-          color={activeSession ? 'warning' : 'primary'}
+          color="primary"
           startIcon={starting
             ? <CircularProgress size={18} color="inherit" />
             : <PlayArrowIcon />}
           onClick={startSession}
-          disabled={starting || exercises.length === 0}
+          fullWidth
+          disabled={starting || (!activeSession && exercises.length === 0)}
         >
           {starting
             ? t(adjustWithAi ? 'routines.aiPlanning' : 'routines.startingSession')
             : activeSession ? t('routines.resumeSession') : t('routines.startSession')}
         </Button>
         {startError && <Alert severity="info">{startError}</Alert>}
+        </Box>
+
+        <RoutineScheduleControls routine={routine} day={selectedDay} onSaved={setRoutine} />
 
         {/* ── Exercises ── */}
         <Typography variant="subtitle1" fontWeight={600}>
@@ -391,17 +505,20 @@ export default function RoutineDetailPage() {
         </Typography>
         {exercises.length === 0 && <Alert severity="info">{t('routines.emptyDay')}</Alert>}
 
-        {exercises.map((ex, idx) => (
+        {exercises.map((ex, idx) => {
+          const defaults = resolveExerciseDefaults(routine, idx, sessions, selectedDay?.id);
+          const firstSet = defaults.sets[0];
+          return (
           <Card key={`${ex.name}-${idx}`} variant="outlined">
             <CardContent sx={{ '&:last-child': { pb: 2 } }}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <ExerciseGif gifUrl={ex.gif_url} images={ex.images} size={72} />
+              <Stack direction="row" alignItems="center" sx={{ display: 'grid', gridTemplateColumns: { xs: '56px minmax(0,1fr)', sm: '72px minmax(0,1fr) auto' }, gap: { xs: 1.25, sm: 2 } }}>
+                <Box sx={{ bgcolor: '#f6f3fb', borderRadius: 3, overflow: 'hidden', width: { xs: 56, sm: 72 }, height: { xs: 56, sm: 72 } }}><ExerciseGif gifUrl={ex.gif_url} images={ex.images} size="100%" /></Box>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography fontWeight={600} noWrap>{ex.name}</Typography>
+                  <Typography fontWeight={700} sx={{ overflowWrap: 'anywhere' }}>{ex.name}</Typography>
                   <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
                     <Chip
                       size="small"
-                      label={`${ex.sets}×${ex.reps}${ex.weight_kg ? ` · ${ex.weight_kg}kg` : ''}`}
+                      label={`${ex.sets}×${firstSet?.reps ?? ex.reps}${firstSet?.weight_kg ? ` · ${formatWeight(firstSet.weight_kg, getExerciseWeightUnit(profile, defaults))}` : ''}`}
                     />
                     {ex.rest_sec != null && ex.rest_sec > 0 && (
                       <Chip size="small" variant="outlined" icon={<TimerIcon />} label={`${ex.rest_sec}s`} />
@@ -410,87 +527,104 @@ export default function RoutineDetailPage() {
                       <Chip size="small" variant="outlined" label={ex.muscle_group} sx={{ textTransform: 'capitalize' }} />
                     )}
                   </Stack>
+                  <LoadBasisGuidance exercise={ex} compact />
+                  {ex.load_basis_review_required && defaults.recorded && <RecordedLoadReference reference={defaults.recorded} />}
                   {ex.notes && (
                     <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
                       {ex.notes}
                     </Typography>
                   )}
                 </Box>
-                <Stack>
-                  <IconButton aria-label={t('common.moveUp')} size="small" onClick={() => moveExercise(idx, -1)} disabled={idx === 0}>
+                <Stack direction="row" sx={{ gridColumn: { xs: '1 / -1', sm: 'auto' }, justifyContent: 'flex-end' }}>
+                <Stack direction={{ xs: 'row', sm: 'column' }}>
+                  <IconButton aria-label={t('common.moveUp')} size="small" onClick={() => moveExercise(ex, idx, -1)} disabled={idx === 0}>
                     <KeyboardArrowUpIcon fontSize="small" />
                   </IconButton>
-                  <IconButton aria-label={t('common.moveDown')} size="small" onClick={() => moveExercise(idx, 1)} disabled={idx === exercises.length - 1}>
+                  <IconButton aria-label={t('common.moveDown')} size="small" onClick={() => moveExercise(ex, idx, 1)} disabled={idx === exercises.length - 1}>
                     <KeyboardArrowDownIcon fontSize="small" />
                   </IconButton>
                 </Stack>
-                <Stack>
-                  <IconButton aria-label={t('common.edit')} size="small" onClick={() => setEditIndex(idx)}>
+                <Stack direction={{ xs: 'row', sm: 'column' }}>
+                  <IconButton aria-label={t('common.edit')} size="small" onClick={() => openExerciseEditor(ex, idx)}>
                     <EditIcon fontSize="small" />
                   </IconButton>
                   <Tooltip title={t('exerciseLog.remove')}>
-                    <IconButton size="small" color="error" onClick={() => removeExercise(idx)}>
+                    <IconButton size="small" color="error" aria-label={t('exerciseLog.remove')} onClick={() => removeExercise(ex, idx)}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                 </Stack>
+                </Stack>
               </Stack>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
+        </>}
 
         {/* ── Progress ── */}
-        {completed.length > 0 && (
+        {(progressView || completed.length > 0) && (
           <>
             <Typography variant="subtitle1" fontWeight={600}>{t('routines.progress')}</Typography>
             <Card variant="outlined">
               <CardContent>
-                <Select
-                  value={chartExercise}
+                {progressChoices.length > 0 && <Select
+                  value={chartExercise?.key ?? ''}
                   onChange={(e) => setChartExercise(e.target.value)}
                   size="small" fullWidth sx={{ mb: 2 }}
+                  inputProps={{ 'aria-label': t('exerciseProgress.exercise') }}
                 >
-                  {exercises.map((ex) => (
-                    <MenuItem key={ex.name} value={ex.name}>{ex.name}</MenuItem>
+                  {progressChoices.map((choice) => (
+                    <MenuItem key={choice.key} value={choice.key}>
+                      {choice.historical ? t('routineHistory.historicalExercise', { name: choice.name }) : choice.name}
+                    </MenuItem>
                   ))}
-                </Select>
-                {chartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={220}>
-                    <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                      <XAxis dataKey="date" fontSize={12} />
-                      <YAxis yAxisId="w" fontSize={12} />
-                      <YAxis yAxisId="v" orientation="right" fontSize={12} width={45} />
-                      <ChartTooltip />
-                      <Line yAxisId="w" type="monotone" dataKey="topWeight" name={t('routines.topSetKg')} stroke="#1976d2" strokeWidth={2} dot />
-                      <Line yAxisId="v" type="monotone" dataKey="volume" name={t('routines.volumeKg')} stroke="#9c27b0" strokeWidth={2} dot />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    {t('routines.noChartData')}
+                </Select>}
+                <ExerciseProgress sessions={completed} exerciseName={chartExercise?.name ?? ''}
+                  exerciseId={chartExercise?.id} previousNames={chartExercise?.previousNames}
+                  legacyNames={chartExercise?.legacyNames} legacyOnly={chartExercise?.legacyOnly}
+                  movementNames={chartExercise?.movementNames} movementLibraryId={chartExercise?.movementLibraryId}
+                  defaultWeightUnit={defaultWeightUnit} />
+                {hasEarlierSessions && <Stack spacing={1} sx={{ mt: 2 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    {t('routineHistory.loaded', { count: sessions.length })}
                   </Typography>
-                )}
+                  <Button variant="outlined" onClick={loadEarlierSessions} disabled={loadingEarlier} sx={{ minHeight: 44 }}>
+                    {t(loadingEarlier ? 'routineHistory.loadingEarlier' : 'routineHistory.loadEarlier')}
+                  </Button>
+                </Stack>}
+                {earlierError && <Alert severity="error" sx={{ mt: 2 }}>{t('routineHistory.loadError')}</Alert>}
+                {completed.length === 0 && <Stack spacing={1} sx={{ mt: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {t('routines.noProgressForDay')}
+                  </Typography>
+                  {latestCompletedDay && <Button variant="outlined" startIcon={<ShowChartIcon />} sx={{ minHeight: 44 }}
+                    onClick={() => openProgress(true)}>{t('routines.viewLatestProgress')}</Button>}
+                </Stack>}
               </CardContent>
             </Card>
 
             {/* ── History ── */}
-            <Typography variant="subtitle1" fontWeight={600}>{t('routines.history')}</Typography>
+            {completed.length > 0 && <Typography variant="subtitle1" fontWeight={600}>{t('routines.history')}</Typography>}
             {completed.slice(0, 10).map((s) => (
               <Card key={s.id} variant="outlined">
                 <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
                   <Stack direction="row" alignItems="center" spacing={1}>
                     <Typography fontWeight={600} sx={{ flex: 1 }}>{s.date}</Typography>
                     {s.total_volume_kg != null && (
-                      <Chip size="small" label={`${Math.round(s.total_volume_kg)} kg`} />
+                      <Chip size="small" label={formatWeight(s.total_volume_kg, defaultWeightUnit)} />
                     )}
                     {s.duration_min != null && (
                       <Chip size="small" variant="outlined" icon={<TimerIcon />} label={`${s.duration_min} min`} />
                     )}
                   </Stack>
                   <Typography variant="caption" color="text.secondary">
-                    {s.exercises.map((e) => `${e.name}: ${summarizeSets(e.sets)}`).join(' · ')}
+                    {s.exercises.map((e) => `${e.name}: ${summarizeSets(e.sets, profile?.workout_weight_unit ?? e.weight_unit ?? defaultWeightUnit)}`).join(' · ')}
                   </Typography>
+                  <Button size="small" sx={{ mt: 1, minHeight: 44 }}
+                    onClick={() => navigate(`/workout-history?routine=${encodeURIComponent(routine.id)}&session=${encodeURIComponent(s.id)}`)}>
+                    {t('workoutHistory.viewSets')}
+                  </Button>
                 </CardContent>
               </Card>
             ))}
@@ -526,11 +660,19 @@ export default function RoutineDetailPage() {
       />
 
       <ExerciseConfigDialog
-        open={editIndex !== null}
-        initial={editIndex !== null ? exercises[editIndex] : null}
-        editableName={editIndex !== null && !exercises[editIndex]?.library_id}
-        onClose={() => setEditIndex(null)}
-        onSave={(ex) => { if (editIndex !== null) updateExercise(editIndex, ex); setEditIndex(null); }}
+        open={editTarget !== null && !!editedExercise}
+        initial={editedExercise?.load_basis_review_required ? { ...editedExercise } : editedExercise ? {
+          ...editedExercise,
+          set_defaults: editDefaults?.sets.map(set => ({ reps: set.reps, weight_kg: set.weight_kg })),
+          reps: editDefaults?.sets[0]?.reps ?? editedExercise.reps,
+          weight_kg: editDefaults?.sets[0]?.weight_kg ?? editedExercise.weight_kg,
+          weight_unit: getExerciseWeightUnit(profile, editDefaults ?? {}),
+          weight_unit_override: Boolean(editDefaults?.weight_unit_override),
+        } : null}
+        recordedReference={editRecorded}
+        editableName={!!editedExercise && !editedExercise.library_id}
+        onClose={() => setEditTarget(null)}
+        onSave={(ex) => { updateExercise(ex); setEditTarget(null); }}
       />
 
       <Dialog open={metaOpen} onClose={() => setMetaOpen(false)} fullWidth maxWidth="xs">

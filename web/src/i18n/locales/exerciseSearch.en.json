@@ -1,0 +1,13 @@
+{
+  "exerciseSearch": {
+    "placeholder": "Search exercises or enter your own",
+    "loading": "Loading exercises…",
+    "noResults": "No matching exercises. You can keep your custom name.",
+    "loadError": "The exercise library is unavailable. You can still enter a custom exercise.",
+    "retry": "Retry library",
+    "preview": "Preview of {{name}}",
+    "previewTitle": "Exercise preview",
+    "previewHint": "Choose a library exercise to preview the movement.",
+    "matchedPreviewHint": "Suggested visual match; your saved exercise stays unchanged."
+  }
+}

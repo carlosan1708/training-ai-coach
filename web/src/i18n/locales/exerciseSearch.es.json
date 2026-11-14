@@ -1,0 +1,13 @@
+{
+  "exerciseSearch": {
+    "placeholder": "Busca un ejercicio o escribe uno propio",
+    "loading": "Cargando ejercicios…",
+    "noResults": "No hay ejercicios coincidentes. Puedes conservar tu nombre personalizado.",
+    "loadError": "La biblioteca de ejercicios no está disponible. Puedes escribir un ejercicio personalizado.",
+    "retry": "Reintentar biblioteca",
+    "preview": "Vista previa de {{name}}",
+    "previewTitle": "Vista previa del ejercicio",
+    "previewHint": "Elige un ejercicio de la biblioteca para ver su demostración.",
+    "matchedPreviewHint": "Coincidencia visual sugerida; tu ejercicio guardado se mantiene igual."
+  }
+}

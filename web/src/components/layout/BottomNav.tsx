@@ -1,46 +1,17 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { BottomNavigation, BottomNavigationAction, Paper } from '@mui/material';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import EditNoteIcon from '@mui/icons-material/EditNote';
-import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
-import ChatIcon from '@mui/icons-material/Chat';
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
-import { useAuthStore } from '../../store/authStore';
-
-const ADMIN_UID = import.meta.env.VITE_ADMIN_UID as string | undefined;
-
-// Meal Plans is intentionally unlisted for now — the page stays reachable at /plans
-const baseNavItems = [
-  { labelKey: 'nav.dashboard', value: '/dashboard', icon: <DashboardIcon /> },
-  { labelKey: 'nav.log',       value: '/log',       icon: <EditNoteIcon /> },
-  { labelKey: 'nav.workouts',  value: '/routines',  icon: <FitnessCenterIcon /> },
-  { labelKey: 'nav.chat',      value: '/chat',      icon: <ChatIcon /> },
-];
+import { navigationItems, navigationPath } from './navigation';
 
 export default function BottomNav() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { currentUser } = useAuthStore();
-
-  const isAdmin = ADMIN_UID && currentUser?.uid === ADMIN_UID;
-  const navItems = isAdmin
-    ? [...baseNavItems, { labelKey: 'nav.admin', value: '/admin', icon: <AdminPanelSettingsIcon /> }]
-    : baseNavItems;
-
-  return (
-    <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100 }} elevation={3}>
-      <BottomNavigation value={pathname} onChange={(_, val) => navigate(val)} showLabels>
-        {navItems.map((item) => (
-          <BottomNavigationAction
-            key={item.value}
-            label={t(item.labelKey)}
-            value={item.value}
-            icon={item.icon}
-          />
-        ))}
-      </BottomNavigation>
-    </Paper>
-  );
+  return <Paper component="nav" aria-label={t('redesign.shell.mainNavigation')} elevation={0}
+    sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1100, borderTop: 1, borderColor: 'divider', pb: 'env(safe-area-inset-bottom)', bgcolor: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(16px)' }}>
+    <BottomNavigation value={navigationPath(pathname)} onChange={(_, value: string) => navigate(value)} showLabels sx={{ height: 70, bgcolor: 'transparent', px: 1 }}>
+      {navigationItems.map(item => <BottomNavigationAction key={item.path} label={t(item.key)} value={item.path} icon={item.icon}
+        sx={{ minWidth: 60, gap: 0.5, color: 'text.secondary', '& .MuiBottomNavigationAction-label': { fontSize: '0.69rem', fontWeight: 600, '&.Mui-selected': { fontSize: '0.69rem', fontWeight: 750 } }, '&.Mui-selected': { color: 'primary.main' } }} />)}
+    </BottomNavigation>
+  </Paper>;
 }
