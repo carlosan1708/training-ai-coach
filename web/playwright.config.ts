@@ -2,12 +2,13 @@ import { defineConfig, devices } from '@playwright/test';
 
 /**
  * E2E suite — runs entirely against DEMO MODE, so no Firebase project,
- * .env.local, or Gemini key is needed:  npx playwright test
+ * .env.local, or OpenAI credentials are needed:  npx playwright test
  */
 export default defineConfig({
   testDir: './e2e',
   timeout: 60_000,
   fullyParallel: true,
+  workers: process.env.CI ? 2 : 4,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   use: {

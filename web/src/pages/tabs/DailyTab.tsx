@@ -17,62 +17,60 @@ import { serverTimestamp } from 'firebase/firestore';
 import { useAuthStore } from '../../store/authStore';
 import { upsertDailyLog } from '../../firebase/firestore';
 import { useDailyLog } from '../../hooks/useDailyLog';
+import WeightField from '../../components/WeightField';
 
 interface Props { date: string }
 
 export default function DailyTab({ date }: Props) {
   const { t } = useTranslation();
   const { currentUser } = useAuthStore();
-  const { log, loading } = useDailyLog(date);
+  const { log, loading, error, retry } = useDailyLog(date);
 
-  const [weight, setWeight] = useState('');
+  const [weight, setWeight] = useState<number | undefined>();
   const [energy, setEnergy] = useState(3);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState(false);
 
   useEffect(() => {
-    if (log) {
-      setWeight(log.weight_kg != null ? String(log.weight_kg) : '');
-      setEnergy(log.energy ?? 3);
-      setNotes(log.notes ?? '');
-    }
-  }, [log]);
+    if (loading) return;
+    setWeight(log?.weight_kg ?? undefined);
+    setEnergy(log?.energy ?? 3);
+    setNotes(log?.notes ?? '');
+  }, [log, loading]);
 
   const handleSave = async () => {
-    if (!currentUser) return;
+    if (!currentUser || loading || error) return;
     setSaving(true);
+    setSaveError(false);
     try {
       await upsertDailyLog(currentUser.uid, date, {
         date,
-        weight_kg: weight ? parseFloat(weight) : undefined,
+        weight_kg: weight ?? null,
         energy,
         notes,
-        measurements: log?.measurements ?? {},
-        food_log: log?.food_log ?? [],
-        exercise_log: log?.exercise_log ?? [],
         updated_at: serverTimestamp(),
-        ...(!log ? { created_at: serverTimestamp() } : {}),
+        ...(!log ? { created_at: serverTimestamp(), measurements: {}, food_log: [], exercise_log: [] } : {}),
       });
       setSaved(true);
+    } catch {
+      setSaveError(true);
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', pt: 8 }}><CircularProgress /></Box>;
+  if (error) return <Container maxWidth="sm" sx={{ py: 3 }}><Alert severity="error"
+    action={<Button onClick={retry}>{t('routines.retry')}</Button>}>{t('common.error')}</Alert></Container>;
 
   return (
     <Container maxWidth="sm" sx={{ py: 3 }}>
       <Stack spacing={3}>
-        <TextField
-          label={t('dailyLog.weight')}
-          type="number"
-          value={weight}
-          onChange={(e) => setWeight(e.target.value)}
-          fullWidth
-          inputProps={{ min: 20, max: 500, step: 0.1 }}
-        />
+        {saveError && <Alert severity="error">{t('common.error')}</Alert>}
+        <WeightField valueKg={weight} onChange={setWeight} unit="kg" showUnitToggle={false}
+          label={t('weightInput.bodyWeight')} preferenceKey="body-weight" />
         <Box>
           <Typography gutterBottom>
             {t('dailyLog.energy')}: <strong>{energy} — {t(`dailyLog.energyLabels.${energy}`)}</strong>

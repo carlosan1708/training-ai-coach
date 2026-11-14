@@ -1,15 +1,16 @@
 /**
  * Typed wrappers around the Cloud Functions. In demo mode each call is
  * answered locally (see src/demo/ai.ts) after a short delay, so the whole
- * app works without Firebase or a Gemini key.
+ * app works without Firebase or OpenAI credentials.
  */
 import { httpsCallable } from 'firebase/functions';
 import { functions } from './config';
 import { isDemoMode, demoDelay } from '../demo';
 import * as demoAi from '../demo/ai';
 import type { ExerciseLogEntry, BodyCompositionReport, MealAnalysis } from '../types/log';
-import type { GeneratedRoutine, RoutineExercise, SessionPlan } from '../types/routine';
+import type { GeneratedRoutine, LoadConvention, RoutineExercise, SessionPlan } from '../types/routine';
 import type { WeeklyReport } from '../types/report';
+import type { ChatMemoryStatus } from '../types/coachMemory';
 
 type Result<T> = Promise<{ data: T }>;
 
@@ -25,7 +26,7 @@ const call = <In, Out>(name: string, demo: (data: In) => Out) =>
 
 export const chatFn = call<
   { message: string; sessionId: string },
-  { reply: string }
+  { reply: string; memory_status?: ChatMemoryStatus }
 >('chat', ({ message }) => demoAi.chat(message));
 
 export const parseExercisePhotoFn = call<
@@ -52,7 +53,7 @@ export interface PlanSessionRequest {
   routine: { name: string; exercises: RoutineExercise[] };
   recentSessions: {
     date: string;
-    exercises: { name: string; sets: { reps: number; weight_kg: number; done: boolean }[] }[];
+    exercises: (import('../types/routine').LoadConvention & { name: string; sets: { reps: number; weight_kg: number; done: boolean }[] })[];
   }[];
 }
 
@@ -60,6 +61,11 @@ export const planWorkoutSessionFn = call<PlanSessionRequest, { plan: SessionPlan
   'plan_workout_session',
   ({ routine, recentSessions }) => demoAi.planWorkoutSession(routine, recentSessions)
 );
+
+export const substituteExerciseFn = call<
+  { substitution: { exercise: LoadConvention & { name: string; sets: number; reps: number; weight_kg?: number; rest_sec?: number }; reason: string } },
+  { substitution: RoutineExercise; reason: string }
+>('plan_workout_session', ({ substitution }) => demoAi.substituteExercise(substitution.exercise));
 
 export const generateWeeklyReportFn = call<Record<string, never>, { report: WeeklyReport }>(
   'generate_weekly_report',

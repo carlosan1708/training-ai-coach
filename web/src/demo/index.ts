@@ -22,8 +22,12 @@ export const enableDemoMode = () => {
 
 /** Turn demo mode off and wipe the local sample data. */
 export const disableDemoMode = () => {
+  // The separate demo chat allowance intentionally survives sample-data resets.
   localStorage.removeItem(FLAG_KEY);
   localStorage.removeItem(DB_KEY);
+  localStorage.removeItem('tac_demo_measurements_v1');
+  localStorage.removeItem('tac_access_demo_v1');
+  localStorage.removeItem('tac_demo_coach_memory_v1');
 };
 
 export const DEMO_UID = 'demo-user';

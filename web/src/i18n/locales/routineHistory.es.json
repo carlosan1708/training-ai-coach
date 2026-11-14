@@ -1,0 +1,9 @@
+{
+  "routineHistory": {
+    "historicalExercise": "{{name}} · Historial",
+    "loadEarlier": "Cargar sesiones anteriores",
+    "loadingEarlier": "Cargando sesiones anteriores…",
+    "loadError": "No se pudieron cargar las sesiones anteriores. Inténtalo de nuevo.",
+    "loaded": "{{count}} sesiones cargadas. Puedes ampliar tu progreso con las sesiones anteriores."
+  }
+}

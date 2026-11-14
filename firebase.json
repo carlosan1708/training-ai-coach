@@ -36,19 +36,31 @@
     "ignore": [
       "venv",
       "__pycache__",
+      "**/__pycache__/**",
+      "**/*.pyc",
+      "tests",
+      "scripts",
       ".git",
       "firebase-debug.log",
-      "*.local"
+      ".env",
+      ".env.*",
+      ".secret",
+      ".secret.*",
+      "*.local",
+      "*.local.json",
+      "*.pem",
+      "*.key",
+      "*.p12",
+      "*.pfx",
+      "service-account*.json",
+      "serviceAccount*.json",
+      "credentials.json",
+      "application_default_credentials.json"
     ]
   },
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
-  "storage": [
-    {
-      "bucket": "ai-training-coach-6880b.firebasestorage.app",
-      "rules": "storage.rules"
-    }
-  ]
+  "storage": { "rules": "storage.rules" }
 }

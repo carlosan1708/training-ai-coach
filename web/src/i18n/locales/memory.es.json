@@ -1,0 +1,30 @@
+{
+  "coachMemory": {
+    "open": "Memoria del coach",
+    "title": "Lo que tu coach recuerda",
+    "personal": "Sobre ti",
+    "progress": "Tu progreso",
+    "hint": "El coach puede recordar datos útiles que le cuentes entre conversaciones: objetivos, preferencias y limitaciones. Revísalos aquí o cuéntale cuando algo cambie.",
+    "empty": "Todavía no hay recuerdos personales guardados.",
+    "add": "Contarle algo al coach",
+    "draft": "Recuerda que ",
+    "forget": "Olvidar",
+    "forgetAll": "Olvidar todo",
+    "confirmTitle": "¿Olvidar este recuerdo?",
+    "confirmAll": "¿Olvidar todos los recuerdos personales?",
+    "deleteHint": "Se borrará el recuerdo guardado. Tus mensajes, perfil y mediciones se conservan por separado.",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "error": "No se pudo cargar la memoria del coach. Inténtalo de nuevo.",
+    "deleteError": "No se pudo borrar el recuerdo. Recarga e inténtalo de nuevo.",
+    "retry": "Recargar",
+    "saved": "Memoria del coach actualizada",
+    "unavailable": "La respuesta está lista, pero no se pudo actualizar la memoria. Cuéntaselo de nuevo más tarde si quieres que lo recuerde.",
+    "conflict": "La memoria cambió durante esta respuesta. Revisa los recuerdos actuales antes de añadirlo de nuevo.",
+    "full": "La memoria del coach está llena. Olvida un dato antiguo y vuelve a contarle lo que quieres que recuerde.",
+    "progressHint": "Un resumen factual de todo tu historial guardado, con medianas diarias y fuentes y métodos separados. El coach lo usa como contexto; no es un diagnóstico.",
+    "progressEmpty": "Guarda una medición para comenzar tu resumen de progreso.",
+    "progressError": "No se pudo cargar tu resumen de progreso. Inténtalo de nuevo.",
+    "personalOnly": "Los recuerdos personales están separados del historial de mediciones."
+  }
+}

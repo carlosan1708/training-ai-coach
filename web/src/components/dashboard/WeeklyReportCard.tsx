@@ -23,6 +23,10 @@ import { useAuthStore } from '../../store/authStore';
 import { getLatestWeeklyReport } from '../../firebase/firestore';
 import { generateWeeklyReportFn } from '../../firebase/callables';
 import type { WeeklyReport } from '../../types/report';
+import { appEnvironment } from '../../firebase/config';
+import { isDemoMode } from '../../demo';
+import { isQaAiPaused } from '../../lib/aiErrors';
+import { weeklyReportForDisplay } from '../../lib/weeklyReportCopy';
 
 const isoDaysAgo = (n: number) => {
   const d = new Date();
@@ -38,6 +42,7 @@ export default function WeeklyReportCard() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
+  const manualQa = appEnvironment === 'qa' && !isDemoMode();
 
   const generate = async () => {
     setGenerating(true);
@@ -45,15 +50,16 @@ export default function WeeklyReportCard() {
     try {
       const result = await generateWeeklyReportFn({});
       setReport(result.data.report);
-    } catch {
-      setError(t('report.error'));
+    } catch (failure) {
+      setError(t(isQaAiPaused(failure) ? 'redesign.qa.aiPaused' : 'report.error'));
     } finally {
       setGenerating(false);
     }
   };
 
-  // On login: show the latest report, and refresh it automatically when it's
-  // missing or covers a week that ended 7+ days ago.
+  // QA browsing only reads saved reports. A model request needs a deliberate
+  // click and the server's temporary QA test window, even after a failed read.
+  // Production and the local demo retain their automatic weekly refresh.
   // Keyed on the uid, not the User object: firebase hands out a new User
   // instance on every token refresh, which re-ran this effect mid-flight and
   // cancelled a request that was about to succeed.
@@ -73,6 +79,11 @@ export default function WeeklyReportCard() {
       setReport(latest);
       setLoading(false);
 
+      if (manualQa) {
+        setGenerating(false);
+        return;
+      }
+
       const stale = !latest || latest.week_end <= isoDaysAgo(7);
       if (!stale) {
         setGenerating(false);
@@ -82,8 +93,8 @@ export default function WeeklyReportCard() {
       try {
         const result = await generateWeeklyReportFn({});
         if (!cancelled) setReport(result.data.report);
-      } catch {
-        if (!cancelled) setError(t('report.error'));
+      } catch (failure) {
+        if (!cancelled) setError(t(isQaAiPaused(failure) ? 'redesign.qa.aiPaused' : 'report.error'));
       } finally {
         // Unconditional: bailing out here on `cancelled` left the card stuck
         // on "Analyzing your week..." forever, even after the call succeeded.
@@ -91,11 +102,12 @@ export default function WeeklyReportCard() {
       }
     })();
     return () => { cancelled = true; };
-  }, [uid, t]);
+  }, [uid, t, manualQa]);
 
   if (loading) return null;
 
-  const stats = report?.stats;
+  const displayReport = report && weeklyReportForDisplay(report, t);
+  const stats = displayReport?.stats;
 
   return (
     <Card variant="outlined">
@@ -108,7 +120,7 @@ export default function WeeklyReportCard() {
             </Typography>
             {report && (
               <Tooltip title={t('report.refresh')}>
-                <IconButton size="small" onClick={generate} disabled={generating}>
+                <IconButton size="small" aria-label={t('report.refresh')} onClick={generate} disabled={generating}>
                   {generating
                     ? <CircularProgress size={16} />
                     : <RefreshIcon fontSize="small" />}
@@ -116,6 +128,8 @@ export default function WeeklyReportCard() {
               </Tooltip>
             )}
           </Stack>
+
+          {manualQa && <Typography variant="caption" color="text.secondary">{t('redesign.report.manualQa')}</Typography>}
 
           {!report && (
             <>
@@ -136,12 +150,12 @@ export default function WeeklyReportCard() {
             </>
           )}
 
-          {report && (
+          {displayReport && (
             <>
               <Box>
-                <Typography fontWeight={700}>{report.headline}</Typography>
+                <Typography fontWeight={700}>{displayReport.headline}</Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {t('report.week', { start: report.week_start, end: report.week_end })}
+                  {t('report.week', { start: displayReport.week_start, end: displayReport.week_end })}
                 </Typography>
               </Box>
 
@@ -152,14 +166,6 @@ export default function WeeklyReportCard() {
                     icon={<FitnessCenterIcon />}
                     label={t('report.sessions', { count: stats.sessions })}
                   />
-                  {stats.total_volume_kg > 0 && (
-                    <Chip
-                      size="small"
-                      label={t('report.volume', { kg: stats.total_volume_kg.toLocaleString() })}
-                      color={stats.volume_change_pct != null && stats.volume_change_pct > 0 ? 'success' : 'default'}
-                      variant="outlined"
-                    />
-                  )}
                   {stats.weight_delta_kg != null && (
                     <Chip
                       size="small"
@@ -171,16 +177,16 @@ export default function WeeklyReportCard() {
                 </Stack>
               )}
 
-              {report.summary && (
-                <Typography variant="body2">{report.summary}</Typography>
+              {displayReport.summary && (
+                <Typography variant="body2">{displayReport.summary}</Typography>
               )}
 
-              {report.wins.length > 0 && (
+              {displayReport.wins.length > 0 && (
                 <Box>
                   <Typography variant="caption" fontWeight={700} color="success.main">
                     {t('report.wins')}
                   </Typography>
-                  {report.wins.map((w, i) => (
+                  {displayReport.wins.map((w, i) => (
                     <Stack key={i} direction="row" spacing={0.75} alignItems="flex-start">
                       <CheckCircleOutlineIcon sx={{ fontSize: 15, mt: 0.35 }} color="success" />
                       <Typography variant="body2">{w}</Typography>
@@ -189,12 +195,12 @@ export default function WeeklyReportCard() {
                 </Box>
               )}
 
-              {report.focus_next_week.length > 0 && (
+              {displayReport.focus_next_week.length > 0 && (
                 <Box>
                   <Typography variant="caption" fontWeight={700} color="primary.main">
                     {t('report.focus')}
                   </Typography>
-                  {report.focus_next_week.map((f, i) => (
+                  {displayReport.focus_next_week.map((f, i) => (
                     <Stack key={i} direction="row" spacing={0.75} alignItems="flex-start">
                       <FlagOutlinedIcon sx={{ fontSize: 15, mt: 0.35 }} color="primary" />
                       <Typography variant="body2">{f}</Typography>

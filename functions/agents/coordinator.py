@@ -9,29 +9,21 @@ Each specialist node receives the full conversation history plus
 the user-context system prompt and replies as that agent.
 """
 
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+from lib.openai_client import make_llm, ResponsesChatAdapter
 from langgraph.graph import StateGraph, START, END
 
 from .state import CoachState, INTENTS
 from lib.context import build_user_context
 from lib.llm import content_text
+from lib.chat_memory import CHAT_SCHEMA, EXTRACTION_INSTRUCTIONS, memory_prompt
+import json
 
 # ─── Shared LLM factory ───────────────────────────────────────────────────────
 
-# Mirrors GEMINI_MODEL in main.py; kept local to avoid importing the functions
-# entry point (which would be circular).
-FLASH_MODEL = "gemini-3.5-flash"
-PRO_MODEL = "gemini-pro-latest"
-
-
-def _make_llm(api_key: str, model: str = FLASH_MODEL) -> ChatGoogleGenerativeAI:
-    return ChatGoogleGenerativeAI(model=model, google_api_key=api_key)
-
-
 # ─── Node factories ──────────────────────────────────────────────────────────
 
-def _router_node(llm: ChatGoogleGenerativeAI):
+def _router_node(llm: ResponsesChatAdapter):
     """Classifies the latest user message into one of the INTENTS."""
 
     def node(state: CoachState) -> dict:
@@ -50,7 +42,8 @@ def _router_node(llm: ChatGoogleGenerativeAI):
             "Reply with ONLY one word: diet, exercise, health, or general"
         )
         response = llm.invoke([HumanMessage(content=prompt)])
-        intent = content_text(response).strip().lower().split()[0]
+        words = content_text(response).strip().lower().split()
+        intent = words[0] if words else "general"
         if intent not in INTENTS:
             intent = "general"
         return {"intent": intent}
@@ -58,7 +51,7 @@ def _router_node(llm: ChatGoogleGenerativeAI):
     return node
 
 
-def _agent_node(llm: ChatGoogleGenerativeAI, system_prompt: str):
+def _agent_node(llm: ResponsesChatAdapter, system_prompt: str):
     """
     Generic agent node. Prepends the user-context block and the
     agent-specific system prompt, then runs the full conversation.
@@ -69,10 +62,15 @@ def _agent_node(llm: ChatGoogleGenerativeAI, system_prompt: str):
             state.get("user_profile", {}),
             active_meal_plan=state.get("active_meal_plan", {}),
             recent_logs=state.get("recent_logs", []),
+            progress_context=state.get("progress_context", {}),
         )
-        system = SystemMessage(content=f"{system_prompt}\n\n{context}")
-        response = llm.invoke([system, *state["messages"]])
-        return {"messages": [response]}
+        memory = state.get("chat_memory") or {"revision": 0, "facts": []}
+        source = json.dumps({"LATEST_USER_MESSAGE": state.get("current_user_message", "")}, ensure_ascii=False)
+        system = SystemMessage(content=f"{system_prompt}\n\n{context}\n\n{memory_prompt(memory)}\n\n{EXTRACTION_INSTRUCTIONS}\n{source}")
+        result = llm.invoke_structured([system, *state["messages"]], CHAT_SCHEMA, "coach_reply_and_memory")
+        if not isinstance(result, dict) or not isinstance(result.get("reply"), str) or not result["reply"].strip():
+            raise ValueError("The coach returned an invalid reply.")
+        return {"messages": [AIMessage(content=result["reply"][:12000])], "memory_updates": result.get("memory_updates", [])}
 
     return node
 
@@ -121,10 +119,10 @@ Keep responses warm, concise, and actionable."""
 
 # ─── Graph builder ────────────────────────────────────────────────────────────
 
-def build_graph(api_key: str):
+def build_graph():
     """Build and compile the LangGraph coordinator graph."""
-    llm_flash = _make_llm(api_key, FLASH_MODEL)
-    llm_pro = _make_llm(api_key, PRO_MODEL)
+    llm_flash = make_llm("general")
+    llm_pro = make_llm("progress")
 
     graph = StateGraph(CoachState)
 

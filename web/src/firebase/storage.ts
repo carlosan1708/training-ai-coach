@@ -78,16 +78,17 @@ export const uploadMealPhoto = (
 export const uploadBodyCompositionReport = (
   uid: string,
   file: File,
+  onProgress?: (pct: number) => void,
 ): Promise<UploadResult> => {
-  if (isDemoMode()) return Promise.resolve(demoUpload(file));
+  if (isDemoMode()) { onProgress?.(100); return Promise.resolve(demoUpload(file)); }
   return new Promise((resolve, reject) => {
     const ext = file.name.split('.').pop() ?? 'bin';
     const storagePath = `users/${uid}/body_composition_reports/${Date.now()}.${ext}`;
     const storageRef = ref(storage, storagePath);
     const task = uploadBytesResumable(storageRef, file);
-    task.on('state_changed', null, reject, async () => {
-      const downloadUrl = await getDownloadURL(task.snapshot.ref);
-      resolve({ downloadUrl, storagePath });
+    task.on('state_changed', snap => onProgress?.(Math.round(snap.bytesTransferred / snap.totalBytes * 100)), reject, () => {
+      // A failed download-URL lookup must reject rather than leave the form busy.
+      void getDownloadURL(task.snapshot.ref).then(downloadUrl => resolve({ downloadUrl, storagePath }), reject);
     });
   });
 };

@@ -1,0 +1,7 @@
+{
+  "chunksRecovery": {
+    "title": "We couldn’t open this screen",
+    "hint": "Reload this screen to try again.",
+    "reload": "Reload screen"
+  }
+}

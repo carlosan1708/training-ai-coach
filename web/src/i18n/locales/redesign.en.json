@@ -1,0 +1,162 @@
+{
+  "redesign": {
+    "qa": {
+      "aiPaused": "AI is paused in QA. Ask to open a temporary test window, or explore the demo.",
+      "chatDailyLimit": "The demo includes 10 chat messages per day. You’ve used today’s messages. Come back tomorrow, or restore your message to send it later. Real accounts have no daily chat limit.",
+      "pollingPaused": "Automatic QA status checks are paused. Your saved measurements are safe. Refresh when you’re ready to check again.",
+      "refreshStatus": "Refresh status"
+    },
+    "report": {
+      "manualQa": "QA reports run only when you ask. AI processing needs a temporary test window."
+    },
+    "nav": {
+      "today": "Today",
+      "train": "Train",
+      "progress": "Progress",
+      "coach": "Coach"
+    },
+    "shell": {
+      "tagline": "A little stronger, every day",
+      "workspace": "Your space",
+      "mainNavigation": "Main navigation",
+      "coachCard": "A little guidance goes a long way.",
+      "coachHint": "Questions, a fresh plan, or a nudge to keep going. Your coach is here.",
+      "viewProfile": "Your profile & preferences",
+      "account": "Your account"
+    },
+    "welcome": {
+      "badge": "Training that fits real life",
+      "title": "Your goals.",
+      "titleAccent": "Your kind of strong.",
+      "description": "A friendly space to train, understand your progress, and find your rhythm—with an AI coach by your side.",
+      "private": "Your training and health information stay private to your account.",
+      "preview": "Illustrative preview of your training space",
+      "previewGreeting": "A good day to feel stronger.",
+      "previewWorkout": "Your next great workout",
+      "previewAction": "Let's get moving",
+      "previewCoach": "You've got this.",
+      "previewCoachHint": "Small steps. Steady progress.",
+      "progressCard": "See how far you've come",
+      "progressHint": "Your progress, all in one place.",
+      "footer": "Made for progress at your own pace.",
+      "featureTrain": "Train your way",
+      "featureProgress": "Feel your progress",
+      "featureCoach": "Find your rhythm"
+    },
+    "today": {
+      "subtitle": "A little movement. A little momentum. Make today yours.",
+      "nextUp": "YOUR NEXT MOVE",
+      "inProgress": "PICK UP WHERE YOU LEFT OFF",
+      "heroTitle": "Let's find your rhythm.",
+      "heroHint": "Make a little space for yourself. Your {{minutes}}-minute training session is waiting.",
+      "resumeHint": "Your workout is saved. Jump back in when you're ready.",
+      "checkIn": "A MOMENT FOR YOU",
+      "checkInTitle": "How are you feeling today?",
+      "checkInHint": "A quick check-in helps you spot what makes you feel your best.",
+      "checkInDone": "You're checked in.",
+      "checkInDoneHint": "Your day is taking shape. Add a note or update your check-in anytime.",
+      "thisWeek": "Your week in motion",
+      "weekProgress": "{{count}} sessions this week · {{goal}} planned",
+      "trainedDay": "{{date}}: workout completed",
+      "calendarDay": "{{date}}: no completed workout",
+      "yourSnapshot": "TODAY AT A GLANCE",
+      "quickActions": "Make it a good day",
+      "meals": "Log a meal",
+      "mealsHint": "Fuel your day",
+      "measurements": "Body progress",
+      "measurementsHint": "See the bigger picture",
+      "plans": "Meal plans",
+      "plansHint": "A little inspiration",
+      "askCoach": "Ask your coach",
+      "askCoachHint": "Get a little guidance",
+      "insights": "A little perspective",
+      "activityError": "Some training activity couldn't load. You can still open your workouts and logs."
+    },
+    "train": {
+      "eyebrow": "MAKE TIME FOR YOU",
+      "description": "Your routines, your pace. Build something you look forward to.",
+      "makeItYours": "Make your next workout yours.",
+      "createHint": "Start fresh with your coach or build a routine you love.",
+      "yourRoutines": "Your routines",
+      "emptyTitle": "Your first workout starts here.",
+      "routineHint": "Open your routine, choose your day, and get moving.",
+      "ready": "Ready when you are",
+      "createError": "Your routine couldn't be saved. Please try again.",
+      "deleteTitle": "Delete this routine?",
+      "yourRoutine": "YOUR TRAINING PLAN",
+      "readyToResume": "Ready for another set?",
+      "readyToTrain": "A little stronger starts here.",
+      "sessionHint": "Your saved targets are ready. AI adjustments are always your choice."
+    },
+    "progress": {
+      "eyebrow": "EVERY LITTLE STEP COUNTS",
+      "title": "Look how far you've come.",
+      "description": "Your training and body progress, brought together.",
+      "workoutHint": "Revisit your sessions, completed sets, and training milestones.",
+      "workoutAction": "Explore your history",
+      "exerciseTitle": "Stronger, set by set",
+      "exerciseHint": "Open a routine and select View progress to compare repetitions and loads over time.",
+      "exerciseAction": "Explore exercise progress",
+      "measurementsAction": "Measurements"
+    },
+    "profile": {
+      "eyebrow": "YOUR COACH, YOUR WAY",
+      "title": "Your profile",
+      "description": "A little about you helps your coach meet you where you are.",
+      "optional": "Optional · add whenever you're ready",
+      "notSpecified": "Prefer not to say",
+      "bodyUnits": "Body weight stays in kilograms and measurements in centimeters. Workout loads have their own kg/lb preference.",
+      "yourPace": "Things change. Your plan can too.",
+      "yourPaceHint": "Update your goals, schedule, and preferences whenever life shifts.",
+      "about": "About you",
+      "aboutHint": "Your name and optional body information",
+      "training": "Your training",
+      "trainingHint": "Goals, equipment, schedule, and workout units",
+      "nutrition": "Food & nutrition",
+      "nutritionHint": "Preferences that make your plan feel like you",
+      "health": "Health & comfort",
+      "healthHint": "Anything you'd like your coach to keep in mind",
+      "coach": "Your coaching style",
+      "coachHint": "Language and the kind of guidance you prefer",
+      "save": "Save changes",
+      "saving": "Saving…",
+      "saved": "Your profile is up to date.",
+      "saveError": "Your changes couldn't be saved. Please try again.",
+      "saveHint": "Your preferences are yours to change.",
+      "invalidNumbers": "Check the optional numbers: age 10–120, height 50–300 cm, and goal weight 20–500 kg."
+    },
+    "onboarding": {
+      "quickSetup": "A QUICK HELLO",
+      "time": "About a minute",
+      "you": "Let's make this feel like you.",
+      "rhythm": "Find your training rhythm.",
+      "coach": "Meet your kind of coach.",
+      "stepHint1": "First, a name and a goal. We'll build from there.",
+      "stepHint2": "Choose what fits your week. You can always change it.",
+      "stepHint3": "A few preferences, and you're ready to go.",
+      "later": "You can edit this later",
+      "goal": "What would you like to work toward?",
+      "nameError": "Enter a name between 1 and 80 characters.",
+      "saveError": "We couldn't save your setup. Your draft is here—please try again.",
+      "optionalHint": "You can add body information, nutrition preferences, and health notes in your profile whenever you're ready.",
+      "finish": "Let's get started"
+    },
+    "chat": {
+      "newChat": "New chat",
+      "context": "Your goals, your routines, a little guidance.",
+      "conversation": "Conversation with your coach",
+      "emptyTitle": "What's on your mind?",
+      "emptyHint": "A training question, a little motivation, or help with your next step. Start anywhere.",
+      "prompts": {
+        "training": "What should I train today?",
+        "progress": "How is my progress looking?",
+        "nutrition": "Help me fuel my training."
+      },
+      "restore": "Restore message",
+      "inputHint": "Enter to send · Shift + Enter for a new line"
+    },
+    "session": {
+      "eyebrow": "YOUR WORKOUT, YOUR MOMENT"
+    }
+  }
+}

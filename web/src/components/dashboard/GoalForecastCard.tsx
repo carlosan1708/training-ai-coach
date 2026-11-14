@@ -15,8 +15,9 @@ import FlagIcon from '@mui/icons-material/Flag';
 import { LineChart, Line, YAxis, ResponsiveContainer } from 'recharts';
 import { useAuthStore } from '../../store/authStore';
 import { useProfileStore } from '../../store/profileStore';
-import { getRecentDailyLogs } from '../../firebase/firestore';
+import { getMeasurementWorkspace } from '../../firebase/measurements';
 import { forecastGoal, type WeightPoint } from '../../lib/forecast';
+import { latestWeightSeries } from '../../lib/measurementWeights';
 
 export default function GoalForecastCard() {
   const { t, i18n } = useTranslation();
@@ -25,18 +26,22 @@ export default function GoalForecastCard() {
 
   const [points, setPoints] = useState<WeightPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [source, setSource] = useState('');
+  const [sourceMethod, setSourceMethod] = useState('');
+  const [repeated, setRepeated] = useState(false);
+  const [loadedUid, setLoadedUid] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentUser) return;
-    getRecentDailyLogs(currentUser.uid, 30)
-      .then((logs) =>
-        setPoints(
-          logs
-            .filter((l) => l.weight_kg != null)
-            .map((l) => ({ date: l.date, weight: l.weight_kg as number }))
-        )
-      )
-      .finally(() => setLoading(false));
+    let active = true;
+    const load = () => getMeasurementWorkspace().then(workspace => {
+      if (!active) return;
+      const series = latestWeightSeries(workspace.entries);
+      setPoints(series.points); setSource(series.source); setSourceMethod(series.method); setRepeated(series.repeated);
+    }).catch(() => { if (active) { setPoints([]); setSource(''); setSourceMethod(''); setRepeated(false); } }).finally(() => { if (active) { setLoadedUid(currentUser.uid); setLoading(false); } });
+    void load();
+    window.addEventListener('measurements-changed', load);
+    return () => { active = false; window.removeEventListener('measurements-changed', load); };
   }, [currentUser]);
 
   const goal = profile?.goal_weight_kg ?? null;
@@ -52,7 +57,7 @@ export default function GoalForecastCard() {
     }
   }, [i18n.language]);
 
-  if (loading) return null;
+  if (loading || !currentUser || loadedUid !== currentUser.uid) return null;
 
   const trendLabel =
     forecast.trendPerWeekKg != null
@@ -112,6 +117,9 @@ export default function GoalForecastCard() {
               />
             )}
           </Stack>
+
+          {source && <Typography variant="caption" color="text.secondary">{t('measurementWorkspace.source')}: {source} · {t(`measurementWorkspace.${({ manual: 'methodManual', bia: 'methodBia', anthropometric: 'methodAnthro' } as Record<string, string>)[sourceMethod.trim().toLowerCase()] ?? 'methodUnknown'}`)}</Typography>}
+          {repeated && <Typography variant="caption" color="text.secondary">{t('measurementWorkspace.dailyMedian')}</Typography>}
 
           {points.length >= 2 && (
             <Box sx={{ height: 56 }}>

@@ -1,23 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Alert,
   Box,
   Button,
   CircularProgress,
   Dialog,
   DialogContent,
   DialogTitle,
-  InputAdornment,
   List,
   ListItemButton,
   ListItemText,
-  TextField,
   Typography,
 } from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
 import ExerciseGif from '../ExerciseGif';
+import ExerciseAutocomplete from '../ExerciseAutocomplete';
 import ExerciseConfigDialog from './ExerciseConfigDialog';
 import {
   loadExerciseLibrary,
@@ -82,28 +79,16 @@ export default function ExercisePickerDialog({ open, onClose, onAdd }: Props) {
       <Dialog open={open && !configuring} onClose={onClose} fullWidth maxWidth="sm">
         <DialogTitle>{t('routines.addExercise')}</DialogTitle>
         <DialogContent sx={{ minHeight: 420 }}>
-          <TextField
-            autoFocus
+          <ExerciseAutocomplete
+            label={t('routines.searchExercises')}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('routines.searchExercises')}
-            size="small"
-            fullWidth
-            sx={{ mt: 1, mb: 1 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-            }}
+            onChange={setSearch}
+            onSelect={pickLibrary}
           />
 
           <Button startIcon={<AddIcon />} onClick={pickCustom} size="small" sx={{ mb: 1 }}>
             {t('routines.addCustom')}
           </Button>
-
-          {loadError && <Alert severity="warning">{t('routines.libraryError')}</Alert>}
 
           {!library && !loadError && (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>

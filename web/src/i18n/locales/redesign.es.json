@@ -1,0 +1,162 @@
+{
+  "redesign": {
+    "qa": {
+      "aiPaused": "La IA está en pausa en QA. Solicita una ventana de pruebas temporal o explora la demostración.",
+      "chatDailyLimit": "La demostración incluye 10 mensajes al día. Ya has usado los de hoy. Vuelve mañana o recupera tu mensaje para enviarlo más tarde. Las cuentas reales no tienen límite diario de chat.",
+      "pollingPaused": "Las consultas automáticas de estado de QA están en pausa. Tus mediciones guardadas están seguras. Actualiza cuando quieras volver a consultar.",
+      "refreshStatus": "Actualizar estado"
+    },
+    "report": {
+      "manualQa": "En QA, los informes se generan solo cuando los solicitas. El procesamiento con IA necesita una ventana de pruebas temporal."
+    },
+    "nav": {
+      "today": "Hoy",
+      "train": "Entrenar",
+      "progress": "Progreso",
+      "coach": "Coach"
+    },
+    "shell": {
+      "tagline": "Un poco más fuerte cada día",
+      "workspace": "Tu espacio",
+      "mainNavigation": "Navegación principal",
+      "coachCard": "Un poco de apoyo hace la diferencia.",
+      "coachHint": "Una pregunta, un nuevo plan o un empujón para seguir. Tu coach está aquí.",
+      "viewProfile": "Tu perfil y preferencias",
+      "account": "Tu cuenta"
+    },
+    "welcome": {
+      "badge": "Entrenamiento para la vida real",
+      "title": "Tus metas.",
+      "titleAccent": "Tu forma de ser fuerte.",
+      "description": "Un espacio cercano para entrenar, entender tu progreso y encontrar tu ritmo, con un coach de IA a tu lado.",
+      "private": "Tu información de entrenamiento y salud es privada para tu cuenta.",
+      "preview": "Vista ilustrativa de tu espacio de entrenamiento",
+      "previewGreeting": "Un buen día para sentirte más fuerte.",
+      "previewWorkout": "Tu próximo gran entrenamiento",
+      "previewAction": "Vamos a movernos",
+      "previewCoach": "¡Tú puedes!",
+      "previewCoachHint": "Pequeños pasos. Progreso constante.",
+      "progressCard": "Mira lo que has avanzado",
+      "progressHint": "Tu progreso en un solo lugar.",
+      "footer": "Para avanzar a tu propio ritmo.",
+      "featureTrain": "Entrena a tu manera",
+      "featureProgress": "Siente tu progreso",
+      "featureCoach": "Encuentra tu ritmo"
+    },
+    "today": {
+      "subtitle": "Un poco de movimiento, un poco de impulso. Haz tuyo este día.",
+      "nextUp": "TU PRÓXIMO PASO",
+      "inProgress": "RETOMA DONDE LO DEJASTE",
+      "heroTitle": "Encontremos tu ritmo.",
+      "heroHint": "Haz un espacio para ti. Te espera una sesión de {{minutes}} minutos.",
+      "resumeHint": "Tu entrenamiento está guardado. Retómalo cuando quieras.",
+      "checkIn": "UN MOMENTO PARA TI",
+      "checkInTitle": "¿Cómo te sientes hoy?",
+      "checkInHint": "Un registro rápido te ayuda a descubrir qué te hace sentir mejor.",
+      "checkInDone": "Ya registraste tu día.",
+      "checkInDoneHint": "Tu día va tomando forma. Agrega una nota o actualiza tu registro cuando quieras.",
+      "thisWeek": "Tu semana en movimiento",
+      "weekProgress": "{{count}} sesiones esta semana · {{goal}} planeadas",
+      "trainedDay": "{{date}}: entrenamiento completado",
+      "calendarDay": "{{date}}: sin entrenamiento completado",
+      "yourSnapshot": "TU DÍA DE UN VISTAZO",
+      "quickActions": "Haz que sea un buen día",
+      "meals": "Registrar comida",
+      "mealsHint": "Energía para tu día",
+      "measurements": "Progreso corporal",
+      "measurementsHint": "Mira el panorama completo",
+      "plans": "Planes de comida",
+      "plansHint": "Un poco de inspiración",
+      "askCoach": "Habla con tu coach",
+      "askCoachHint": "Un poco de orientación",
+      "insights": "Un poco de perspectiva",
+      "activityError": "No pudimos cargar parte de tu actividad. Puedes abrir tus entrenamientos y registros."
+    },
+    "train": {
+      "eyebrow": "HAZ UN ESPACIO PARA TI",
+      "description": "Tus rutinas, tu ritmo. Crea algo que te motive.",
+      "makeItYours": "Haz tuyo tu próximo entrenamiento.",
+      "createHint": "Empieza con tu coach o crea una rutina que te encante.",
+      "yourRoutines": "Tus rutinas",
+      "emptyTitle": "Tu primer entrenamiento empieza aquí.",
+      "routineHint": "Abre tu rutina, elige tu día y ponte en movimiento.",
+      "ready": "Lista cuando tú lo estés",
+      "createError": "No pudimos guardar tu rutina. Inténtalo de nuevo.",
+      "deleteTitle": "¿Eliminar esta rutina?",
+      "yourRoutine": "TU PLAN DE ENTRENAMIENTO",
+      "readyToResume": "¿Seguimos con otra serie?",
+      "readyToTrain": "Un poco más fuerte empieza aquí.",
+      "sessionHint": "Tus objetivos guardados están listos. Tú decides si quieres ajustes con IA."
+    },
+    "progress": {
+      "eyebrow": "CADA PEQUEÑO PASO CUENTA",
+      "title": "Mira lo que has avanzado.",
+      "description": "Tu entrenamiento y progreso corporal, juntos.",
+      "workoutHint": "Revisa tus sesiones, series completadas y logros de entrenamiento.",
+      "workoutAction": "Explorar tu historial",
+      "exerciseTitle": "Más fuerte, serie a serie",
+      "exerciseHint": "Abre una rutina y selecciona Ver progreso para comparar repeticiones y cargas.",
+      "exerciseAction": "Explorar progreso por ejercicio",
+      "measurementsAction": "Mediciones"
+    },
+    "profile": {
+      "eyebrow": "TU COACH, A TU MANERA",
+      "title": "Tu perfil",
+      "description": "Conocerte un poco ayuda a tu coach a adaptarse a ti.",
+      "optional": "Opcional · agrégalo cuando quieras",
+      "notSpecified": "Prefiero no decirlo",
+      "bodyUnits": "El peso corporal se muestra en kilogramos y las medidas en centímetros. Las cargas de entrenamiento tienen su propia preferencia de kg/lb.",
+      "yourPace": "Las cosas cambian. Tu plan también.",
+      "yourPaceHint": "Actualiza tus metas, horario y preferencias cuando cambie tu día a día.",
+      "about": "Sobre ti",
+      "aboutHint": "Tu nombre e información corporal opcional",
+      "training": "Tu entrenamiento",
+      "trainingHint": "Metas, equipo, horario y unidades de carga",
+      "nutrition": "Alimentación y nutrición",
+      "nutritionHint": "Preferencias para que el plan sea tuyo",
+      "health": "Salud y bienestar",
+      "healthHint": "Lo que te gustaría que tu coach tenga en cuenta",
+      "coach": "Tu estilo de coaching",
+      "coachHint": "Idioma y el tipo de orientación que prefieres",
+      "save": "Guardar cambios",
+      "saving": "Guardando…",
+      "saved": "Tu perfil está actualizado.",
+      "saveError": "No pudimos guardar tus cambios. Inténtalo de nuevo.",
+      "saveHint": "Puedes cambiar tus preferencias cuando quieras.",
+      "invalidNumbers": "Revisa los datos opcionales: edad de 10 a 120, altura de 50 a 300 cm y peso objetivo de 20 a 500 kg."
+    },
+    "onboarding": {
+      "quickSetup": "UN SALUDO RÁPIDO",
+      "time": "Cerca de un minuto",
+      "you": "Hagamos que este espacio sea tuyo.",
+      "rhythm": "Encuentra tu ritmo.",
+      "coach": "Conoce tu estilo de coach.",
+      "stepHint1": "Primero, un nombre y una meta. Construiremos a partir de ahí.",
+      "stepHint2": "Elige lo que encaja con tu semana. Puedes cambiarlo después.",
+      "stepHint3": "Unas preferencias y todo listo para empezar.",
+      "later": "Puedes editarlo después",
+      "goal": "¿Qué te gustaría lograr?",
+      "nameError": "Ingresa un nombre de entre 1 y 80 caracteres.",
+      "saveError": "No pudimos guardar tu configuración. Tu borrador sigue aquí: inténtalo de nuevo.",
+      "optionalHint": "Puedes agregar datos corporales, preferencias de alimentación y notas de salud en tu perfil cuando quieras.",
+      "finish": "Vamos a empezar"
+    },
+    "chat": {
+      "newChat": "Nuevo chat",
+      "context": "Tus metas, tus rutinas y un poco de orientación.",
+      "conversation": "Conversación con tu coach",
+      "emptyTitle": "¿Qué tienes en mente?",
+      "emptyHint": "Una duda de entrenamiento, un poco de motivación o ayuda con el próximo paso. Empieza por donde quieras.",
+      "prompts": {
+        "training": "¿Qué debería entrenar hoy?",
+        "progress": "¿Cómo va mi progreso?",
+        "nutrition": "Ayúdame a comer para entrenar mejor."
+      },
+      "restore": "Recuperar mensaje",
+      "inputHint": "Enter para enviar · Mayús + Enter para una nueva línea"
+    },
+    "session": {
+      "eyebrow": "TU ENTRENAMIENTO, TU MOMENTO"
+    }
+  }
+}

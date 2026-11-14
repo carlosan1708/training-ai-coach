@@ -14,17 +14,19 @@ import type { UserProfile } from '../../types/user';
 interface Props {
   draft: Partial<UserProfile>;
   onUpdate: (partial: Partial<UserProfile>) => void;
+  showGoal?: boolean;
 }
 
-export default function Step3Exercise({ draft, onUpdate }: Props) {
+export default function Step3Exercise({ draft, onUpdate, showGoal = true }: Props) {
   const { t } = useTranslation();
 
   return (
     <Stack spacing={3}>
-      <FormControl fullWidth>
+      {showGoal && <FormControl fullWidth>
         <InputLabel>{t('onboarding.exercise.goal')}</InputLabel>
         <Select
           value={draft.training_goal ?? 'general'}
+          inputProps={{ 'aria-label': t('onboarding.exercise.goal') }}
           label={t('onboarding.exercise.goal')}
           onChange={(e) =>
             onUpdate({ training_goal: e.target.value as UserProfile['training_goal'] })
@@ -36,12 +38,13 @@ export default function Step3Exercise({ draft, onUpdate }: Props) {
             </MenuItem>
           ))}
         </Select>
-      </FormControl>
+      </FormControl>}
 
       <FormControl fullWidth>
         <InputLabel>{t('onboarding.exercise.equipment')}</InputLabel>
         <Select
           value={draft.equipment ?? 'gym'}
+          inputProps={{ 'aria-label': t('onboarding.exercise.equipment') }}
           label={t('onboarding.exercise.equipment')}
           onChange={(e) =>
             onUpdate({ equipment: e.target.value as UserProfile['equipment'] })
@@ -61,6 +64,7 @@ export default function Step3Exercise({ draft, onUpdate }: Props) {
         </Typography>
         <Slider
           min={1}
+          aria-label={t('onboarding.exercise.daysPerWeek')}
           max={7}
           step={1}
           marks
@@ -75,6 +79,7 @@ export default function Step3Exercise({ draft, onUpdate }: Props) {
         </Typography>
         <Slider
           min={15}
+          aria-label={t('onboarding.exercise.sessionLength')}
           max={120}
           step={5}
           marks={[15, 30, 45, 60, 90, 120].map((v) => ({ value: v, label: `${v}` }))}

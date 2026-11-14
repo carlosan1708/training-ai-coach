@@ -5,13 +5,13 @@ import { useProfileStore } from '../../store/profileStore';
 import { useDailyLog } from '../../hooks/useDailyLog';
 import { isDemoMode } from '../../demo';
 import { sumNutrition, calorieTarget, proteinTarget } from '../../lib/nutrition';
-
-const today = new Date().toISOString().split('T')[0];
+import { localDateKey } from '../../lib/dates';
 
 /** At-a-glance nutrition for today. Real-backend feature — hidden in demo. */
 export default function NutritionCard() {
   const { t } = useTranslation();
   const { profile } = useProfileStore();
+  const today = localDateKey();
   const { log } = useDailyLog(today);
 
   if (isDemoMode()) return null;

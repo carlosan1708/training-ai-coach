@@ -5,19 +5,28 @@ Firebase Cloud Functions entry point — Python + LangGraph.
 import json
 import re
 import smtplib
-from datetime import date, timedelta
+from datetime import timedelta
 from email.message import EmailMessage
 
 import firebase_admin
 from firebase_admin import firestore as fs
 from firebase_functions import https_fn, firestore_fn, options
 from google.cloud.firestore_v1.base_query import FieldFilter
-from firebase_functions.params import SecretParam, StringParam
+from firebase_functions.params import StringParam
 from langchain_core.messages import HumanMessage, AIMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 from agents.coordinator import build_graph
 from lib.llm import content_text as _content_text
+from lib.openai_client import make_llm, AI_RUNTIME_SERVICE_ACCOUNT, set_ai_user, ai_user_scope
+from lib.load_basis import LOAD_RULES, load_facts, read_training_load_context, generated_convention, valid_basis
+from lib.access import require_approved
+from lib.measurements import comparable_weight_series, local_today, workout_rollup
+from lib.qa_runtime import qa_runtime_options
+from lib.qa_manual_chat import qa_manual_chat_scope
+
+# Set before importing access/usage decorators so every function uses the
+# configured environment identity, including notifications and schedulers.
+options.set_global_options(service_account=AI_RUNTIME_SERVICE_ACCOUNT, **qa_runtime_options())
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -30,7 +39,7 @@ def _invoke_llm(llm, messages):
         if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "quota" in err_str.lower():
             raise https_fn.HttpsError(
                 code=https_fn.FunctionsErrorCode.RESOURCE_EXHAUSTED,
-                message="Gemini API quota exceeded. Enable billing on your Gemini API project.",
+                message="OpenAI API quota is unavailable. Try again later.",
             )
         raise
 
@@ -38,46 +47,49 @@ def _invoke_llm(llm, messages):
 firebase_admin.initialize_app()
 
 # ─── Secrets & params ─────────────────────────────────────────────────────────
-GEMINI_API_KEY = SecretParam("GEMINI_API_KEY")
-
-# Gemini retires model IDs on a rolling basis and a retired ID fails at call
-# time with a 404, not at deploy time — keep the name in one place.
-GEMINI_MODEL = "gemini-3.5-flash"
-
-# The Gemini calls peak above the 256 MiB default (observed 272 MiB).
+# All AI functions use a dedicated runtime identity and short-lived OpenAI WIF.
 AI_MEMORY = options.MemoryOption.MB_512
 
 # Email notifications (signup requests). Credentials are secrets; host/port/
 # recipient are plain params so they can be set without redeploying secrets.
-SMTP_USER = SecretParam("SMTP_USER")          # e.g. your Gmail address
-SMTP_PASSWORD = SecretParam("SMTP_PASSWORD")  # Gmail App Password
-SMTP_HOST = StringParam("SMTP_HOST", default="smtp.gmail.com")
-SMTP_PORT = StringParam("SMTP_PORT", default="587")
+from access_api import APP_ENV, SMTP_USER, SMTP_PASSWORD, SMTP_HOST, SMTP_PORT
 ADMIN_EMAIL = StringParam("ADMIN_EMAIL", default="")  # where notifications go
 
 
 # ─── chat ─────────────────────────────────────────────────────────────────────
 
-@https_fn.on_call(secrets=[GEMINI_API_KEY], memory=AI_MEMORY)
+@https_fn.on_call(memory=AI_MEMORY, service_account=AI_RUNTIME_SERVICE_ACCOUNT, timeout_sec=300)
 def chat(req: https_fn.CallableRequest) -> dict:
-    if req.auth is None:
-        raise https_fn.HttpsError(
-            code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
-            message="Authentication required.",
-        )
-
-    uid = req.auth.uid
+    uid = require_approved(req)
     data = req.data or {}
-    message: str = (data.get("message") or "").strip()
-    session_id: str = data.get("sessionId") or ""
-
-    if not message:
+    from lib.chat_memory import read_memory, delete_memory, forget_command, apply_updates
+    if isinstance(data, dict) and isinstance(data.get("action"), str) and data.get("action") in {"memory_get", "memory_delete"}:
+        db = fs.client()
+        if data["action"] == "memory_get":
+            return read_memory(db, uid)
+        return delete_memory(db, uid, revision=data.get("expectedRevision"), identifier=data.get("id"), all_facts=data.get("all", False))
+    if not isinstance(data, dict) or not isinstance(data.get("message"), str):
+        raise https_fn.HttpsError(https_fn.FunctionsErrorCode.INVALID_ARGUMENT, "message is required.")
+    message = data["message"].strip()
+    session_id = data.get("sessionId") or ""
+    if not message or len(message) > 20000 or not isinstance(session_id, str) or len(session_id) > 160 or "/" in session_id:
         raise https_fn.HttpsError(
             code=https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
             message="message is required.",
         )
 
     db = fs.client()
+    try:
+        chat_memory = read_memory(db, uid)
+    except Exception:
+        chat_memory = None  # A read outage must never overwrite unknown memory.
+    if chat_memory is not None:
+        forgotten = forget_command(db, uid, message, chat_memory)
+        if forgotten is not None:
+            spanish = bool(re.search(r"olvida|borra|elimina|recuerda", message, re.I))
+            return {"reply": ("He olvidado los datos que elegiste." if spanish else "I removed the memories you selected.") if forgotten else
+                    ("Elige el recuerdo en la lista de memoria para olvidarlo." if spanish else "Choose the fact in your memory list so I can forget the right one."),
+                    "memory_status": "saved" if forgotten else "unchanged"}
 
     # ── Profile ───────────────────────────────────────────────────────────────
     profile_snap = db.document(f"users/{uid}/profile/data").get()
@@ -98,27 +110,14 @@ def chat(req: https_fn.CallableRequest) -> dict:
     except Exception:
         pass  # non-fatal — chat works without meal plan context
 
-    # ── Most recent body composition report ──────────────────────────────────
-    latest_bcr = {}
-    try:
-        bcr_snap = (
-            db.collection(f"users/{uid}/body_composition_reports")
-            .order_by("created_at", direction=fs.Query.DESCENDING)
-            .limit(1)
-            .get()
-        )
-        if bcr_snap:
-            bcr_data = bcr_snap[0].to_dict() or {}
-            latest_bcr = bcr_data.get("extracted_data") or {}
-            if bcr_data.get("report_date"):
-                latest_bcr["_report_date"] = bcr_data["report_date"]
-    except Exception:
-        pass
+    from measurement_api import measurement_context
+    progress_context = measurement_context(uid, db)
+    progress_context["training_loads"] = read_training_load_context(db, uid)
 
     # ── Recent logs (last 7 days) ─────────────────────────────────────────────
     recent_logs = []
     try:
-        today = date.today()
+        today = local_today()
         for i in range(7):
             day = (today - timedelta(days=i)).isoformat()
             log_snap = db.document(f"users/{uid}/logs/{day}").get()
@@ -143,39 +142,45 @@ def chat(req: https_fn.CallableRequest) -> dict:
 
     history.append(HumanMessage(content=message))
 
-    # Merge latest BCR into the most recent log if not already present
-    if latest_bcr and recent_logs:
-        if not recent_logs[0].get("body_composition_report"):
-            recent_logs[0]["body_composition_report"] = latest_bcr
-
-    graph = build_graph(GEMINI_API_KEY.value)
-    result = graph.invoke({
-        "messages": history,
-        "user_profile": user_profile,
-        "active_meal_plan": active_meal_plan,
-        "recent_logs": recent_logs,
-        "intent": None,
-    })
+    graph = build_graph()
+    # Only this authenticated, validated manual chat can receive the separate
+    # QA chat allowance. Both contexts unwind even when the graph/provider fails.
+    with ai_user_scope(uid), qa_manual_chat_scope(uid):
+        result = graph.invoke({
+            "messages": history,
+            "user_profile": user_profile,
+            "active_meal_plan": active_meal_plan,
+            "recent_logs": recent_logs,
+            "progress_context": progress_context,
+            "chat_memory": chat_memory or {"revision": 0, "facts": []},
+            "current_user_message": message,
+            "memory_updates": [],
+            "intent": None,
+        })
 
     ai_messages = [m for m in result["messages"] if isinstance(m, AIMessage)]
     reply = _content_text(ai_messages[-1]) if ai_messages else "Sorry, I couldn't generate a response."
 
-    return {"reply": reply}
+    memory_status = "unavailable" if chat_memory is None else "unchanged"
+    if chat_memory is not None:
+        try:
+            message_id = data.get("messageId")
+            if not isinstance(message_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{8,160}", message_id): message_id = None
+            memory_status = apply_updates(db, uid, chat_memory, result.get("memory_updates"), message, session_id, message_id)
+        except Exception:
+            memory_status = "unavailable"
+    return {"reply": reply, "memory_status": memory_status}
 
 
 # ─── parse_exercise_photo ─────────────────────────────────────────────────────
 
-@https_fn.on_call(secrets=[GEMINI_API_KEY], memory=AI_MEMORY)
+@https_fn.on_call(memory=AI_MEMORY, service_account=AI_RUNTIME_SERVICE_ACCOUNT, timeout_sec=300)
 def parse_exercise_photo(req: https_fn.CallableRequest) -> dict:
     """
-    Receives a base64-encoded image, runs Gemini vision on it,
+    Receives a base64-encoded image, runs OpenAI vision on it,
     and returns a structured list of exercises extracted from the photo.
     """
-    if req.auth is None:
-        raise https_fn.HttpsError(
-            code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
-            message="Authentication required.",
-        )
+    set_ai_user(require_approved(req))
 
     data = req.data or {}
     image_b64: str = data.get("imageData", "")
@@ -187,10 +192,7 @@ def parse_exercise_photo(req: https_fn.CallableRequest) -> dict:
             message="imageData is required.",
         )
 
-    llm = ChatGoogleGenerativeAI(
-        model=GEMINI_MODEL,
-        google_api_key=GEMINI_API_KEY.value,
-    )
+    llm = make_llm("extraction")
 
     message = HumanMessage(content=[
         {
@@ -213,10 +215,10 @@ def parse_exercise_photo(req: https_fn.CallableRequest) -> dict:
         },
     ])
 
-    response = llm.invoke([message])
+    response = _invoke_llm(llm, [message])
     text = _content_text(response).strip()
 
-    # Strip markdown code fences if Gemini wraps the output
+    # Strip markdown code fences if the model wraps the output
     text = re.sub(r"^```(?:json)?\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
 
@@ -234,7 +236,7 @@ def parse_exercise_photo(req: https_fn.CallableRequest) -> dict:
 
 # ─── parse_body_composition_report ───────────────────────────────────────────
 
-@https_fn.on_call(secrets=[GEMINI_API_KEY], memory=AI_MEMORY)
+@https_fn.on_call(memory=AI_MEMORY, service_account=AI_RUNTIME_SERVICE_ACCOUNT, timeout_sec=300)
 def parse_body_composition_report(req: https_fn.CallableRequest) -> dict:
     """
     Extracts structured data from a body composition analyzer report
@@ -243,11 +245,7 @@ def parse_body_composition_report(req: https_fn.CallableRequest) -> dict:
     Complements manual tape measurements — both are stored in the daily log
     for AI/RAG ingestion.
     """
-    if req.auth is None:
-        raise https_fn.HttpsError(
-            code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
-            message="Authentication required.",
-        )
+    set_ai_user(require_approved(req))
 
     data = req.data or {}
     image_b64: str = data.get("imageData", "")
@@ -259,10 +257,7 @@ def parse_body_composition_report(req: https_fn.CallableRequest) -> dict:
             message="imageData is required.",
         )
 
-    llm = ChatGoogleGenerativeAI(
-        model=GEMINI_MODEL,
-        google_api_key=GEMINI_API_KEY.value,
-    )
+    llm = make_llm("extraction")
 
     message = HumanMessage(content=[
         {
@@ -381,17 +376,13 @@ def _extract_json(text: str):
 
 # ─── generate_routine ────────────────────────────────────────────────────────
 
-@https_fn.on_call(secrets=[GEMINI_API_KEY], memory=AI_MEMORY)
+@https_fn.on_call(memory=AI_MEMORY, service_account=AI_RUNTIME_SERVICE_ACCOUNT, timeout_sec=300)
 def generate_routine(req: https_fn.CallableRequest) -> dict:
     """
     Generates a structured workout routine from the user's profile plus an
     optional focus/notes prompt. Returns a routine the client can save.
     """
-    if req.auth is None:
-        raise https_fn.HttpsError(
-            code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
-            message="Authentication required.",
-        )
+    set_ai_user(require_approved(req))
 
     uid = req.auth.uid
     data = req.data or {}
@@ -418,6 +409,7 @@ def generate_routine(req: https_fn.CallableRequest) -> dict:
         '"notes":"short form cue or intensity guidance"}]}\n'
         "Rules:\n"
         "- 5 to 8 exercises, ordered compound-first.\n"
+        + LOAD_RULES + "\nSpecify load_basis for every exercise: per_dumbbell, total, machine_display or per_side.\n"
         "- Use standard, widely-known English exercise names (e.g. 'Barbell Squat', "
         "'Lat Pulldown', 'Dumbbell Shoulder Press') so they can be matched against "
         "an exercise-demo database. Keep names in English even if other text is not.\n"
@@ -427,10 +419,7 @@ def generate_routine(req: https_fn.CallableRequest) -> dict:
         f"- Write 'description' and 'notes' in language: {response_language}.\n"
     )
 
-    llm = ChatGoogleGenerativeAI(
-        model=GEMINI_MODEL,
-        google_api_key=GEMINI_API_KEY.value,
-    )
+    llm = make_llm("general")
     response = _invoke_llm(llm, [HumanMessage(content=prompt)])
     routine = _extract_json(_content_text(response))
 
@@ -440,26 +429,50 @@ def generate_routine(req: https_fn.CallableRequest) -> dict:
             message="Could not generate a routine. Please try again.",
         )
 
+    routine["exercises"] = [generated_convention(ex) for ex in routine["exercises"]]
     return {"routine": routine}
 
 
 # ─── plan_workout_session ────────────────────────────────────────────────────
 
-@https_fn.on_call(secrets=[GEMINI_API_KEY], memory=AI_MEMORY)
+@https_fn.on_call(memory=AI_MEMORY, service_account=AI_RUNTIME_SERVICE_ACCOUNT, timeout_sec=300)
 def plan_workout_session(req: https_fn.CallableRequest) -> dict:
     """
     Given a routine and its recent session history, returns AI-adjusted
-    targets (weight / reps / sets) for today's session, applying progressive
-    overload and factoring in recent readiness (energy, weight logs).
+    targets (weight / reps / sets) for today's session, or one explicitly
+    requested exercise alternative through the same guarded AI provider.
     """
-    if req.auth is None:
-        raise https_fn.HttpsError(
-            code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
-            message="Authentication required.",
-        )
+    set_ai_user(require_approved(req))
 
     uid = req.auth.uid
     data = req.data or {}
+    if not isinstance(data, dict):
+        raise https_fn.HttpsError(
+            code=https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            message="A workout request is required.",
+        )
+    if "substitution" in data:
+        from lib.exercise_substitution import (
+            validate_substitution_request, build_substitution_prompt, validate_substitution_response,
+        )
+        try:
+            substitution = validate_substitution_request(data["substitution"])
+        except ValueError as error:
+            raise https_fn.HttpsError(
+                code=https_fn.FunctionsErrorCode.INVALID_ARGUMENT, message=str(error),
+            ) from error
+        db = fs.client()
+        profile_snap = db.document(f"users/{uid}/profile/data").get()
+        profile = (profile_snap.to_dict() if profile_snap.exists else {}) or {}
+        prompt = build_substitution_prompt(substitution, profile)
+        response = _invoke_llm(make_llm("general"), [HumanMessage(content=prompt)])
+        try:
+            return validate_substitution_response(_extract_json(_content_text(response)), substitution)
+        except ValueError as error:
+            raise https_fn.HttpsError(
+                code=https_fn.FunctionsErrorCode.INTERNAL,
+                message="Could not suggest an exercise alternative. Please try again.",
+            ) from error
     routine: dict = data.get("routine") or {}
     recent_sessions: list = data.get("recentSessions") or []
 
@@ -477,7 +490,7 @@ def plan_workout_session(req: https_fn.CallableRequest) -> dict:
     # Recent readiness signals: energy / weight / notes from the last 7 days
     readiness = []
     try:
-        today = date.today()
+        today = local_today()
         for i in range(7):
             day = (today - timedelta(days=i)).isoformat()
             snap = db.document(f"users/{uid}/logs/{day}").get()
@@ -499,7 +512,7 @@ def plan_workout_session(req: https_fn.CallableRequest) -> dict:
             "date": s.get("date"),
             "exercises": [
                 {
-                    "name": e.get("name"),
+                    "name": e.get("name"), **load_facts(e),
                     "sets": [
                         {"reps": st.get("reps"), "weight_kg": st.get("weight_kg")}
                         for st in (e.get("sets") or []) if st.get("done")
@@ -511,7 +524,7 @@ def plan_workout_session(req: https_fn.CallableRequest) -> dict:
 
     routine_exercises = [
         {
-            "name": e.get("name"),
+            "name": e.get("name"), **load_facts(e),
             "sets": e.get("sets"),
             "reps": e.get("reps"),
             "weight_kg": e.get("weight_kg"),
@@ -527,7 +540,7 @@ def plan_workout_session(req: https_fn.CallableRequest) -> dict:
         f"{json.dumps(history, ensure_ascii=False) if history else 'none — this is the first session'}\n\n"
         f"Recent daily readiness logs (energy is 1-5):\n"
         f"{json.dumps(readiness, ensure_ascii=False) if readiness else 'none'}\n\n"
-        "Apply progressive overload:\n"
+        + LOAD_RULES + "\nApply progressive overload only within the same confirmed load basis:\n"
         "- If the user completed all target sets/reps last time, increase weight "
         "(~2.5% upper body, ~5% lower body, minimum sensible plate jump) OR add a rep.\n"
         "- If they missed reps, hold or slightly reduce the load.\n"
@@ -553,10 +566,7 @@ def plan_workout_session(req: https_fn.CallableRequest) -> dict:
         f"- Write 'insight' and 'note' in language: {response_language}.\n"
     )
 
-    llm = ChatGoogleGenerativeAI(
-        model=GEMINI_MODEL,
-        google_api_key=GEMINI_API_KEY.value,
-    )
+    llm = make_llm("general")
     response = _invoke_llm(llm, [HumanMessage(content=prompt)])
     plan = _extract_json(_content_text(response))
 
@@ -566,6 +576,17 @@ def plan_workout_session(req: https_fn.CallableRequest) -> dict:
             message="Could not plan the session. Please try again.",
         )
 
+    # The model may recommend loads, but it cannot silently change their meaning.
+    configured = {ex.get("name", "").casefold(): ex for ex in routine["exercises"]}
+    for exercise in plan["exercises"]:
+        original = configured.get(exercise.get("name", "").casefold(), {})
+        proposed_basis = exercise.pop("load_basis", None)
+        if valid_basis(original.get("load_basis")):
+            exercise["load_basis"] = original["load_basis"]
+        if (original.get("load_basis_review_required") or not valid_basis(original.get("load_basis"))
+            or (proposed_basis is not None and proposed_basis != original.get("load_basis"))):
+            if "weight_kg" in exercise or original.get("load_basis_review_required"): exercise["weight_kg"] = 0
+            if "change" in exercise or original.get("load_basis_review_required"): exercise["change"] = "hold"
     return {"plan": plan}
 
 
@@ -582,7 +603,7 @@ def _top_completed_set(exercise: dict):
 
 def _week_stats(uid: str, db) -> dict:
     """Accurate, locally computed numbers for the last 7 days (+ previous 7 for comparison)."""
-    today = date.today()
+    today = local_today()
     week_start = today - timedelta(days=6)
     prev_start = today - timedelta(days=13)
 
@@ -596,7 +617,12 @@ def _week_stats(uid: str, db) -> dict:
             logs.append(data)
         day += timedelta(days=1)
 
-    weights = [(l["date"], l["weight_kg"]) for l in logs if l.get("weight_kg")]
+    from measurement_api import load_measurement_entries
+    from lib.progress_reporting import measurement_tracking_context
+    from lib.weekly_reporting import current_weekly_weight_entries
+    observed = load_measurement_entries(uid, db)
+    weights, weight_source = comparable_weight_series(
+        current_weekly_weight_entries(observed), week_start.isoformat(), today.isoformat())
     energies = [l["energy"] for l in logs if l.get("energy")]
 
     sessions_snap = (
@@ -608,18 +634,18 @@ def _week_stats(uid: str, db) -> dict:
         s.to_dict() for s in sessions_snap
         if (s.to_dict() or {}).get("status") == "completed"
     ]
-    this_week = [s for s in completed if s.get("date", "") >= week_start.isoformat()]
+    this_week = [s for s in completed if week_start.isoformat() <= s.get("date", "") <= today.isoformat()]
     prev_week = [s for s in completed if s.get("date", "") < week_start.isoformat()]
 
-    def volume(sessions):
-        return sum(s.get("total_volume_kg") or 0 for s in sessions)
-
-    this_vol, prev_vol = volume(this_week), volume(prev_week)
+    this_rollup = workout_rollup(this_week, 14, today)
+    prev_rollup = workout_rollup(prev_week, 14, today)
+    this_vol, prev_vol = this_rollup["total_volume_kg"], prev_rollup["total_volume_kg"]
 
     return {
         "week_start": week_start.isoformat(),
         "week_end": today.isoformat(),
         "sessions": len(this_week),
+        "completed_sets": this_rollup["completed_sets"],
         "routines_done": sorted({s.get("routine_name") or "?" for s in this_week}),
         "total_volume_kg": round(this_vol),
         "prev_volume_kg": round(prev_vol),
@@ -627,12 +653,17 @@ def _week_stats(uid: str, db) -> dict:
         "weight_start_kg": weights[0][1] if weights else None,
         "weight_end_kg": weights[-1][1] if weights else None,
         "weight_delta_kg": round(weights[-1][1] - weights[0][1], 1) if len(weights) >= 2 else None,
+        "weight_day_count": len(weights),
+        "weight_source": weight_source,
+        "historical_measurement_sources": measurement_tracking_context(observed, today=today)["historical_sources"],
         "avg_energy": round(sum(energies) / len(energies), 1) if energies else None,
         "session_details": [
             {
                 "date": s.get("date"),
                 "routine": s.get("routine_name"),
-                "volume_kg": s.get("total_volume_kg"),
+                "volume_kg": workout_rollup([s], 14, today)["total_volume_kg"],
+                "completed_sets": workout_rollup([s], 14, today)["completed_sets"],
+                "load_conventions": [{"name": e.get("name"), **load_facts(e)} for e in (s.get("exercises") or [])],
                 "top_sets": {
                     e.get("name"): _top_completed_set(e)
                     for e in (s.get("exercises") or [])
@@ -644,7 +675,7 @@ def _week_stats(uid: str, db) -> dict:
 
 
 def _generate_weekly_report(uid: str, db, stats: dict | None = None) -> dict:
-    """Compute the week's stats, ask Gemini for the narrative, store and return the report."""
+    """Compute the week's stats, ask OpenAI for the narrative, store and return the report."""
     profile_snap = db.document(f"users/{uid}/profile/data").get()
     profile = profile_snap.to_dict() if profile_snap.exists else {}
     language = profile.get("response_language") or "en"
@@ -658,34 +689,33 @@ def _generate_weekly_report(uid: str, db, stats: dict | None = None) -> dict:
         f"This week's data (locally computed — treat as accurate):\n"
         f"{json.dumps(stats, ensure_ascii=False)}\n\n"
         "Return ONLY a valid JSON object — no markdown — like:\n"
-        '{"headline":"Strong week — volume up 8%",'
-        '"summary":"2-3 sentences interpreting the week: training, weight trend, energy.",'
+        '{"headline":"Your week in training",'
+        '"summary":"2-3 concise sentences about useful recorded training progress and one next step.",'
         '"wins":["max 3 short bullets"],'
         '"focus_next_week":["max 3 short, actionable bullets"]}\n'
         "Rules:\n"
         "- Base every claim strictly on the provided data; never invent numbers.\n"
-        "- Compare top set weights across session_details to spot lifts that went up.\n"
-        "- If there were no sessions this week, be encouraging and make next week's plan concrete.\n"
+        + LOAD_RULES + "\n- Compare top set weights only with the same confirmed basis.\n"
+        "- Always give a useful summary and at least one feasible focus, even with sparse data. Use recorded sessions, completed sets or a source-compatible weight baseline. Never say 'nothing to report', 'sin novedades', or dismiss the week because data is sparse.\n"
+        "- Zero recorded sessions or missing daily logs do not establish inactivity. Describe what is recorded; do not assume the user stopped training.\n"
+        "- Source names (including a former coach, clinician or report author) are historical provenance, never an ongoing dependency. Do not request another third-party or anthropometry report, a repeat assessment or a return to a named provider.\n"
+        "- historical_measurement_sources are dated past context only. Anthropometric, ISAK and skinfold assessments are excluded from current weekly weight tracking; do not use them to drive current trends, forecasts or next steps.\n"
+        "- Future tracking can use the user's own scale or manual measurements. Keep sources, methods and units separate; a new source starts its own baseline. Do not insist that historical sources continue.\n"
         "- Mention weight change only if weight_delta_kg is present.\n"
+        "- One measurement day is only a baseline. Weight change alone never establishes fat loss, muscle gain, recomposition, fitness or goal attainment.\n"
+        "- Do not mention aggregate training volume, total kilograms lifted or their percentage changes in the headline, summary, wins or focus. More tonnage across different exercises is not evidence of hypertrophy or progress. Prioritize consistency and comparable exercise-level load/repetition progress only when supported by the supplied data; otherwise give a practical next-session focus without inventing improvement. Do not list missing energy data. Recorded energy is a self-rating and does not establish recovery.\n"
         f"- Write everything in language: {language}.\n"
     )
 
-    llm = ChatGoogleGenerativeAI(
-        model=GEMINI_MODEL,
-        google_api_key=GEMINI_API_KEY.value,
-    )
+    llm = make_llm("general")
     response = _invoke_llm(llm, [HumanMessage(content=prompt)])
-    narrative = _extract_json(_content_text(response))
-    if not isinstance(narrative, dict):
-        narrative = {}
+    from lib.weekly_reporting import weekly_narrative
+    narrative = weekly_narrative(_extract_json(_content_text(response)), stats, language)
 
     report = {
         "week_start": stats["week_start"],
         "week_end": stats["week_end"],
-        "headline": narrative.get("headline") or "Your week in review",
-        "summary": narrative.get("summary") or "",
-        "wins": narrative.get("wins") or [],
-        "focus_next_week": narrative.get("focus_next_week") or [],
+        **narrative,
         "stats": {k: v for k, v in stats.items() if k != "session_details"},
     }
     db.collection(f"users/{uid}/weekly_reports").add(
@@ -694,30 +724,22 @@ def _generate_weekly_report(uid: str, db, stats: dict | None = None) -> dict:
     return report
 
 
-@https_fn.on_call(secrets=[GEMINI_API_KEY], memory=AI_MEMORY)
+@https_fn.on_call(memory=AI_MEMORY, service_account=AI_RUNTIME_SERVICE_ACCOUNT, timeout_sec=300)
 def generate_weekly_report(req: https_fn.CallableRequest) -> dict:
     """Weekly report — the client calls this on login when the last report is stale."""
-    if req.auth is None:
-        raise https_fn.HttpsError(
-            code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
-            message="Authentication required.",
-        )
+    set_ai_user(require_approved(req))
     return {"report": _generate_weekly_report(req.auth.uid, fs.client())}
 
 
 # ─── analyze_meal_photo ───────────────────────────────────────────────────────
 
-@https_fn.on_call(secrets=[GEMINI_API_KEY], memory=AI_MEMORY)
+@https_fn.on_call(memory=AI_MEMORY, service_account=AI_RUNTIME_SERVICE_ACCOUNT, timeout_sec=300)
 def analyze_meal_photo(req: https_fn.CallableRequest) -> dict:
     """
     Receives a base64-encoded photo of a meal and returns structured
     nutrition: individual food items plus total calories and macros.
     """
-    if req.auth is None:
-        raise https_fn.HttpsError(
-            code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
-            message="Authentication required.",
-        )
+    set_ai_user(require_approved(req))
 
     data = req.data or {}
     image_b64: str = data.get("imageData", "")
@@ -729,10 +751,7 @@ def analyze_meal_photo(req: https_fn.CallableRequest) -> dict:
             message="imageData is required.",
         )
 
-    llm = ChatGoogleGenerativeAI(
-        model=GEMINI_MODEL,
-        google_api_key=GEMINI_API_KEY.value,
-    )
+    llm = make_llm("extraction")
 
     message = HumanMessage(content=[
         {
@@ -803,6 +822,12 @@ def notify_signup_request(event: firestore_fn.Event[firestore_fn.DocumentSnapsho
     if doc.get("status") not in (None, "pending"):
         return
 
+    if APP_ENV.value != "production":
+        fs.client().collection("qa_mail").add({"kind": "signup_request", "recipient": "owner",
+            "user_id": event.params.get("uid"), "created_at": fs.SERVER_TIMESTAMP})
+        print("notify_signup_request: captured QA notification.")
+        return
+
     user = SMTP_USER.value
     password = SMTP_PASSWORD.value
     recipient = ADMIN_EMAIL.value or user
@@ -830,24 +855,20 @@ def notify_signup_request(event: firestore_fn.Event[firestore_fn.DocumentSnapsho
             server.starttls()
             server.login(user, password)
             server.send_message(msg)
-        print(f"notify_signup_request: emailed {recipient} about {email}")
-    except Exception as e:  # noqa: BLE001 — never fail the signup because email failed
-        print(f"notify_signup_request: failed to send email: {e}")
+        print("notify_signup_request: notification sent.")
+    except Exception:  # Email failure must never prevent an access request.
+        print("notify_signup_request: notification delivery failed.")
 
 
 # ─── extract_meal_plan_content ────────────────────────────────────────────────
 
-@https_fn.on_call(secrets=[GEMINI_API_KEY], memory=AI_MEMORY)
+@https_fn.on_call(memory=AI_MEMORY, service_account=AI_RUNTIME_SERVICE_ACCOUNT, timeout_sec=300)
 def extract_meal_plan_content(req: https_fn.CallableRequest) -> dict:
     """
     Extracts structured nutrition data from a meal plan image or PDF.
     Stored in Firestore for AI/RAG ingestion.
     """
-    if req.auth is None:
-        raise https_fn.HttpsError(
-            code=https_fn.FunctionsErrorCode.UNAUTHENTICATED,
-            message="Authentication required.",
-        )
+    set_ai_user(require_approved(req))
 
     data = req.data or {}
     image_b64: str = data.get("imageData", "")
@@ -880,10 +901,7 @@ def extract_meal_plan_content(req: https_fn.CallableRequest) -> dict:
         '{"error":"not a meal plan"}.'
     )
 
-    llm = ChatGoogleGenerativeAI(
-        model=GEMINI_MODEL,
-        google_api_key=GEMINI_API_KEY.value,
-    )
+    llm = make_llm("extraction")
 
     if text_content:
         message = HumanMessage(content=[
@@ -913,3 +931,17 @@ def extract_meal_plan_content(req: https_fn.CallableRequest) -> dict:
         content = {"error": "no_data"}
 
     return {"content": content}
+
+
+# Imported only after Admin initialization; all endpoints share the same app.
+from measurement_api import (parse_measurement_import, save_measurement_entries,
+    update_measurement_entry, delete_measurement_entry, get_measurement_workspace,
+    generate_progress_insights, retry_measurement_job, measurement_job_written,
+    legacy_measurements_changed, legacy_body_report_changed)
+from access_api import (request_access, list_people, set_access_status, create_invitation,
+    resend_invitation, revoke_invitation, accept_invitation)
+from usage_api import (record_usage, usage_report, usage_workout_changed,
+    usage_profile_changed, usage_routine_created, usage_checkin_changed)
+import usage_api as _usage_api
+if hasattr(_usage_api, "usage_cleanup"):
+    usage_cleanup = _usage_api.usage_cleanup

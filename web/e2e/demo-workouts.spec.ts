@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { enterDemo } from './helpers';
+import { enterDemo, revealTrainingOptions } from './helpers';
 
 test.describe('workout routines', () => {
   test('routines list shows the seeded routines', async ({ page }) => {
@@ -22,19 +22,20 @@ test.describe('workout routines', () => {
     await expect(page.getByText('E2E Test Day')).toBeVisible();
 
     // add a custom exercise (no network needed)
+    await revealTrainingOptions(page);
     await page.getByRole('button', { name: 'Add exercise' }).click();
     await page.getByRole('button', { name: 'Add custom exercise' }).click();
     await page.getByLabel('Exercise name').fill('Farmer Carry');
     await page.getByLabel('Weight (kg)').fill('24');
     await page.getByRole('button', { name: 'Save' }).click();
     await expect(page.getByText('Farmer Carry')).toBeVisible();
-    await expect(page.getByText('3×10 · 24kg')).toBeVisible();
+    await expect(page.getByText('3×10 · 24 kg')).toBeVisible();
 
-    // delete the routine from the list (native confirm dialog)
+    // Confirm deletion in the accessible in-app dialog.
     await page.goto('/routines');
-    page.on('dialog', (d) => d.accept());
     const card = page.locator('.MuiCard-root', { hasText: 'E2E Test Day' });
     await card.getByRole('button', { name: 'Delete', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click();
     await expect(page.getByText('E2E Test Day')).toHaveCount(0);
   });
 
@@ -78,11 +79,15 @@ test.describe('workout routines', () => {
     await page.getByRole('button', { name: 'Add set' }).first().click();
     await expect(checks).toHaveCount(before + 1);
 
-    // finish → back on the routine page with a new history entry (today)
+    // Finish opens the exact saved workout, expanded in global history.
     await page.getByRole('button', { name: 'Finish workout' }).click();
-    await page.waitForURL(/\/routines\/[^/]+$/, { timeout: 15_000 });
-    const today = new Date().toISOString().split('T')[0];
-    await expect(page.getByText(today).first()).toBeVisible();
+    await page.waitForURL(/\/workout-history\?session=.+&saved=1$/, { timeout: 15_000 });
+    await expect(page.getByText('Workout completed and saved. Your recorded sets are shown below.', { exact: true })).toBeVisible();
+    const today = await page.evaluate(() => {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    });
+    await expect(page.locator(`time[datetime="${today}"]`).first()).toBeVisible();
   });
 
   test('resume an in-progress session instead of starting a new one', async ({ page }) => {

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { enterDemo } from './helpers';
+import { enterDemo, revealTrainingOptions } from './helpers';
 
 test.use({ hasTouch: true, viewport: { width: 320, height: 700 } });
 
@@ -17,7 +17,7 @@ async function multiDayRoutine(page: Page) {
     db.sessions = [];
     localStorage.setItem('tac_demo_db', JSON.stringify(db));
   });
-  await page.getByRole('button', { name: 'Workouts', exact: true }).tap();
+  await page.getByRole('navigation').getByRole('button', { name: 'Train', exact: true }).tap();
   await expect(page.getByText('Two Day Plan', { exact: true })).toBeVisible();
 }
 
@@ -31,6 +31,7 @@ test('mobile navigation opens stored multi-day routines and preserves each day w
   await page.getByRole('tab', { name: 'Lower day' }).tap();
   await expect(page.getByText('Squat', { exact: true })).toBeVisible();
   await expect(page.getByText('Bench Press', { exact: true })).toHaveCount(0);
+  await revealTrainingOptions(page);
   await page.getByRole('button', { name: 'Add exercise', exact: true }).tap();
   await page.getByRole('button', { name: 'Add custom exercise' }).tap();
   await page.getByLabel('Exercise name').fill('Calf Raise');
@@ -80,6 +81,29 @@ test('starts and resumes only the selected day, keeping other days separate', as
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tac_demo_db')!).sessions.length)).toBe(1);
 });
 
+test('cancels acknowledged autosaves in legacy multi-day documents without adding a flat exercise mirror', async ({ page }) => {
+  await multiDayRoutine(page);
+  const before = await page.evaluate(() => JSON.parse(localStorage.getItem('tac_demo_db')!));
+  expect(before.routines[0].exercises).toBeUndefined();
+  await page.getByText('Two Day Plan', { exact: true }).tap();
+  await page.getByRole('tab', { name: 'Lower day', exact: true }).tap();
+  await page.getByRole('button', { name: 'Start Workout', exact: true }).tap();
+  await page.waitForURL('**/session/**');
+  await page.getByLabel('kg', { exact: true }).first().fill('42');
+  await expect(page.getByText('All changes saved', { exact: true })).toBeVisible();
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('tac_demo_db')!));
+  expect(saved.routines[0].days[1].exercises[0].set_defaults[0].weight_kg).toBe(42);
+  await revealTrainingOptions(page);
+  await page.getByRole('button', { name: 'Cancel workout', exact: true }).tap();
+  await page.getByRole('dialog', { name: 'Cancel this workout?', exact: true })
+    .getByRole('button', { name: 'Discard workout', exact: true }).tap();
+  await expect(page).toHaveURL('/routines/multi-day');
+  const after = await page.evaluate(() => JSON.parse(localStorage.getItem('tac_demo_db')!));
+  expect(after.routines).toEqual(before.routines);
+  expect(after.sessions).toEqual(before.sessions);
+  expect(after.logs).toEqual(before.logs);
+});
+
 test('day controls stay above long exercise lists; renaming preserves days and sessions', async ({ page }) => {
   await multiDayRoutine(page);
   await page.evaluate(() => {
@@ -93,6 +117,7 @@ test('day controls stay above long exercise lists; renaming preserves days and s
   });
   await page.getByText('Two Day Plan', { exact: true }).tap();
   await page.getByRole('tab', { name: 'Lower day' }).tap();
+  await revealTrainingOptions(page);
   const add = page.getByRole('button', { name: 'Add exercise', exact: true });
   const rename = page.getByRole('button', { name: 'Edit day name', exact: true });
   await expect(add).toBeInViewport();
@@ -171,6 +196,7 @@ for (const format of ['flat', 'multi-day']) {
     await expect(page.getByRole('tab', { name: 'New training day', selected: true })).toBeVisible();
     await expect(page.getByText('No exercises in this day yet.', { exact: false })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Start Workout', exact: true })).toBeDisabled();
+    await revealTrainingOptions(page);
     await page.getByRole('button', { name: 'Add exercise', exact: true }).tap();
     await page.getByRole('button', { name: 'Add custom exercise' }).tap();
     await page.getByLabel('Exercise name').fill('Row');
@@ -196,7 +222,7 @@ for (const format of ['flat', 'multi-day']) {
   });
 }
 
-test('starts with saved targets by default and can cancel a session without changing the routine or logs', async ({ page }) => {
+test('starts with last saved weights by default and can cancel without changing history or logs', async ({ page }) => {
   await enterDemo(page);
   await page.goto('/routines/demo-routine-upper');
   await expect(page.getByRole('checkbox', { name: 'Adjust with AI', exact: true })).not.toBeChecked();
@@ -210,17 +236,30 @@ test('starts with saved targets by default and can cancel a session without chan
   expect(started.ai_insight).toBeUndefined();
   expect(started.exercises.map((ex: { target_sets: number; target_reps: number; target_weight_kg: number }) =>
     [ex.target_sets, ex.target_reps, ex.target_weight_kg])).toEqual(
-      routine.exercises.map((ex: { sets: number; reps: number; weight_kg?: number }) => [ex.sets, ex.reps, ex.weight_kg ?? 0]));
-  await page.locator('input[type="checkbox"]').first().check();
+      routine.exercises.map((ex: { sets: number; reps: number }, index: number) =>
+        [ex.sets, ex.reps, [75, 57.5, 42.5, 62.5, 32.5, 37.5][index]]));
+  // The old routine's AI checkbox can remain mounted until the lazy session commits.
+  const firstCompletedSet = page.getByRole('checkbox', {
+    name: 'Complete set 1 of Barbell Bench Press - Medium Grip', exact: true,
+  });
+  await expect(firstCompletedSet).toBeVisible();
+  await firstCompletedSet.check();
+  await revealTrainingOptions(page);
   await page.getByRole('button', { name: 'Cancel workout', exact: true }).tap();
   const confirmation = page.getByRole('dialog', { name: 'Cancel this workout?' });
   await expect(confirmation.getByRole('button', { name: 'Discard workout', exact: true })).toBeInViewport();
   await page.screenshot({ path: test.info().outputPath('cancel-workout-mobile.png'), animations: 'disabled' });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await confirmation.getByRole('button', { name: 'Keep training', exact: true }).tap();
-  await expect(page.locator('input[type="checkbox"]').first()).toBeChecked();
+  await expect(firstCompletedSet).toBeChecked();
+  // A fully acknowledged autosave must be rolled back as well as the queued one.
+  await page.getByLabel('kg', { exact: true }).first().fill('34');
+  await expect(page.getByText('All changes saved', { exact: true })).toBeVisible();
+  const autosaved = await page.evaluate(() => JSON.parse(localStorage.getItem('tac_demo_db')!));
+  expect(autosaved.routines.find((saved: { id: string }) => saved.id === routine.id).exercises[0].set_defaults[0].weight_kg).toBe(34);
   // Queue an autosave immediately before cancelling: it must not recreate the discarded session.
   await page.getByLabel('kg', { exact: true }).first().fill('35');
+  await revealTrainingOptions(page);
   await page.getByRole('button', { name: 'Cancel workout', exact: true }).tap();
   await confirmation.getByRole('button', { name: 'Discard workout', exact: true }).tap();
   await page.waitForURL('**/routines/demo-routine-upper');
@@ -236,6 +275,7 @@ test('starts with saved targets by default and can cancel a session without chan
   await page.getByRole('button', { name: 'Language', exact: true }).tap();
   await page.getByRole('menuitem', { name: 'Español' }).tap();
   await page.setViewportSize({ width: 844, height: 390 });
+  await revealTrainingOptions(page);
   await page.getByRole('button', { name: 'Cancelar entrenamiento', exact: true }).tap();
   const spanish = page.getByRole('dialog', { name: '¿Cancelar este entrenamiento?' });
   await expect(spanish.getByRole('button', { name: 'Descartar entrenamiento', exact: true })).toBeInViewport();

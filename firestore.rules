@@ -1,31 +1,39 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isSignedIn() {
-      return request.auth != null;
+    function signedIn() { return request.auth != null; }
+    function ownerRole() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
-
-    // Admin is identified by hardcoded UID — no separate collection needed
-    function isAdmin() {
-      return isSignedIn() && request.auth.uid == 'FoGUChOQDfdITbqO5h4Uqjfy9PL2';
+    function approved() {
+      return signedIn() && (ownerRole() || (
+        exists(/databases/$(database)/documents/user_status/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/user_status/$(request.auth.uid)).data.status == 'approved'
+      ));
     }
-
-    function isOwner(uid) {
-      return isSignedIn() && request.auth.uid == uid;
+    function approvedOwner(uid) { return approved() && request.auth.uid == uid; }
+    match /admins/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, write: if false;
     }
-
-    // ── User data ─────────────────────────────────────────────────────────
-    match /users/{uid}/{document=**} {
-      allow read, write: if isOwner(uid);
-    }
-
-    // ── Approval status ───────────────────────────────────────────────────
     match /user_status/{uid} {
-      allow read:   if isOwner(uid) || isAdmin();
-      allow create: if isOwner(uid);
-      allow update: if isAdmin();
+      allow read: if signedIn() && (request.auth.uid == uid || ownerRole());
+      allow write: if false;
     }
+    match /users/{uid}/{document=**} {
+      allow read: if approvedOwner(uid);
+    }
+    // Canonical measurements, jobs, summaries and memory stay server-owned.
+    match /users/{uid}/{collection}/{documentId} {
+      allow write: if approvedOwner(uid) && collection in [
+        'profile', 'logs', 'chat_sessions', 'body_composition_reports',
+        'meal_plans', 'routines', 'workout_sessions'
+      ];
+    }
+    match /access_audit/{id} {
+      allow read: if ownerRole();
+      allow write: if false;
+    }
+    // Invitations, QA mail and telemetry use validated callables only.
   }
 }

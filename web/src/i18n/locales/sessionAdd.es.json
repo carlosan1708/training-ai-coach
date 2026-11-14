@@ -1,0 +1,17 @@
+{
+  "sessionAdd": {
+    "title": "Añadir al entrenamiento",
+    "scope": "Dónde guardar este ejercicio",
+    "onlyThisWorkout": "Solo este entrenamiento",
+    "alsoInRoutine": "También guardar en esta rutina",
+    "temporaryHint": "Puedes guardarlo en tu rutina más adelante, después de probarlo en este entrenamiento.",
+    "routineHint": "Estará disponible en próximos entrenamientos, incluso si descartas este entrenamiento.",
+    "dayHint": "Se añadirá a {{day}} para próximos entrenamientos, incluso si descartas este entrenamiento.",
+    "saveError": "No se pudo guardar el ejercicio. Inténtalo de nuevo o recarga el entrenamiento.",
+    "saveInRoutine": "Guardar en rutina",
+    "promoteTitle": "¿Guardar en la rutina?",
+    "promoteHint": "Conserva este ejercicio y sus valores actuales para próximos entrenamientos. Se mantendrán las series completadas.",
+    "inRoutine": "Guardado en rutina",
+    "editorHint": "Los ejercicios añadidos aquí son solo para este entrenamiento. Puedes guardarlos en tu rutina desde la pantalla del entrenamiento."
+  }
+}

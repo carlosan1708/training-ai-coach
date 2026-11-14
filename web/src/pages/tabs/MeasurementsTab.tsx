@@ -1,57 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  CircularProgress,
-  Container,
-  Divider,
-  Grid,
-  IconButton,
-  Snackbar,
-  Stack,
-  TextField,
-  Tooltip,
-  Typography,
-} from '@mui/material';
-import SaveIcon from '@mui/icons-material/Save';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
-import MonitorWeightIcon from '@mui/icons-material/MonitorWeight';
-import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import DeleteIcon from '@mui/icons-material/Delete';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { serverTimestamp } from 'firebase/firestore';
+import { Box, Button, Chip, Container, Grid, Stack, Typography } from '@mui/material';
 import { useAuthStore } from '../../store/authStore';
-import {
-  upsertDailyLog,
-  getBodyCompositionReports,
-  addBodyCompositionReport,
-  deleteBodyCompositionReport,
-  type BodyCompositionReportDoc,
-} from '../../firebase/firestore';
-import { uploadBodyCompositionReport, deleteStoredFile } from '../../firebase/storage';
-import { parseBodyCompositionReportFn as parseBodyCompositionReport } from '../../firebase/callables';
-import { useDailyLog } from '../../hooks/useDailyLog';
-import type { Measurements, BodyCompositionReport } from '../../types/log';
+import { getBodyCompositionReports, type BodyCompositionReportDoc } from '../../firebase/firestore';
+import { deleteMeasurementEntry, measurementRequestId } from '../../firebase/measurements';
+import MeasurementHistory from '../../components/measurements/MeasurementHistory';
+import MeasurementWorkspace from '../../components/measurements/MeasurementWorkspace';
+import type { BodyCompositionReport } from '../../types/log';
 
 interface Props { date: string }
-
-const TAPE_FIELDS: { key: keyof Measurements; label: string }[] = [
-  { key: 'waist_cm', label: 'measurements.waist' },
-  { key: 'chest_cm', label: 'measurements.chest' },
-  { key: 'hips_cm', label: 'measurements.hips' },
-  { key: 'arms_cm', label: 'measurements.arms' },
-  { key: 'thighs_cm', label: 'measurements.thighs' },
-];
 
 const BIA_FIELDS: { key: keyof BodyCompositionReport; label: string; unit: string; precision: number }[] = [
   { key: 'weight_kg',           label: 'measurements.weight',       unit: 'kg',   precision: 1 },
@@ -195,366 +152,32 @@ function ReportDetail({ data }: { data: BodyCompositionReport }) {
 
 export default function MeasurementsTab({ date }: Props) {
   const { t } = useTranslation();
-  const { currentUser } = useAuthStore();
-  const { log, loading: logLoading } = useDailyLog(date);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Tape measurements state
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [bodyFat, setBodyFat] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-
-  // Upload / extraction state
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [filePreview, setFilePreview] = useState<{ dataUrl: string; isPdf: boolean } | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analyzeError, setAnalyzeError] = useState('');
-  const [pendingReport, setPendingReport] = useState<{ report: BodyCompositionReport; summary: string | null } | null>(null);
-
-  // Past reports list state
+  const uid = useAuthStore(state => state.currentUser?.uid);
+  const [legacy, setLegacy] = useState(false);
   const [reports, setReports] = useState<BodyCompositionReportDoc[]>([]);
-  const [reportsLoading, setReportsLoading] = useState(true);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (log?.measurements) {
-      const m = log.measurements;
-      setValues({
-        waist_cm: m.waist_cm != null ? String(m.waist_cm) : '',
-        chest_cm: m.chest_cm != null ? String(m.chest_cm) : '',
-        hips_cm: m.hips_cm != null ? String(m.hips_cm) : '',
-        arms_cm: m.arms_cm != null ? String(m.arms_cm) : '',
-        thighs_cm: m.thighs_cm != null ? String(m.thighs_cm) : '',
-      });
-    }
-    if (log?.body_fat_pct != null) setBodyFat(String(log.body_fat_pct));
-  }, [log]);
-
-  // Keyed on the uid, not the User object, so a token refresh doesn't refetch.
-  const uid = currentUser?.uid;
-
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const loadReports = useCallback(async () => {
     if (!uid) return;
-    setReportsLoading(true);
-    try {
-      const docs = await getBodyCompositionReports(uid);
-      // Sort by report_date desc, fall back to created_at order (already desc from query)
-      docs.sort((a, b) => {
-        const da = a.report_date ?? '';
-        const db_ = b.report_date ?? '';
-        if (da && db_) return db_.localeCompare(da);
-        return da ? -1 : db_ ? 1 : 0;
-      });
-      setReports(docs);
-    } finally {
-      setReportsLoading(false);
-    }
+    setLoading(true); setError(false);
+    try { setReports(await getBodyCompositionReports(uid)); }
+    catch { setError(true); }
+    finally { setLoading(false); }
   }, [uid]);
-
-  useEffect(() => { loadReports(); }, [loadReports]);
-
-  // ── File handling ─────────────────────────────────────────────────────────
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setSelectedFile(file);
-    setPendingReport(null);
-    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-    const reader = new FileReader();
-    reader.onload = () => setFilePreview({ dataUrl: reader.result as string, isPdf });
-    reader.readAsDataURL(file);
+  useEffect(() => { if (legacy) void loadReports(); }, [legacy, loadReports]);
+  const remove = async (report: BodyCompositionReportDoc) => {
+    if (!window.confirm(t('measurements.deleteConfirm'))) return;
+    setDeleting(report.id);
+    try { await deleteMeasurementEntry(`legacy_report_${report.id}`, measurementRequestId()); await loadReports(); setRefresh(value => value + 1); }
+    catch { setError(true); }
+    finally { setDeleting(null); }
   };
-
-  const handleAnalyze = async () => {
-    if (!filePreview || !currentUser || !selectedFile) return;
-    setAnalyzing(true);
-    setAnalyzeError('');
-    try {
-      const [header, imageData] = filePreview.dataUrl.split(',');
-      const mimeType = header.match(/:(.*?);/)?.[1] ?? (filePreview.isPdf ? 'application/pdf' : 'image/jpeg');
-
-      const [extractResult, uploadResult] = await Promise.all([
-        parseBodyCompositionReport({ imageData, mimeType }),
-        uploadBodyCompositionReport(currentUser.uid, selectedFile),
-      ]);
-
-      if (extractResult.data.report.error) {
-        setAnalyzeError(t('measurements.reportNotRecognized'));
-      } else {
-        const report = extractResult.data.report;
-        const summary = extractResult.data.summary ?? null;
-
-        // Save to the reports collection
-        await addBodyCompositionReport(currentUser.uid, {
-          source_app: report.source_app,
-          report_date: report.report_date,
-          ai_summary: summary ?? undefined,
-          download_url: uploadResult.downloadUrl,
-          storage_path: uploadResult.storagePath,
-          file_type: selectedFile.type.includes('pdf') ? 'pdf' : 'image',
-          extracted_data: report as unknown as Record<string, unknown>,
-        });
-
-        // Also embed in today's daily log for chat context
-        await upsertDailyLog(currentUser.uid, date, {
-          body_composition_report: {
-            ...report,
-            report_url: uploadResult.downloadUrl,
-            report_storage_path: uploadResult.storagePath,
-          },
-          updated_at: serverTimestamp(),
-          ...(!log ? { date, created_at: serverTimestamp() } : {}),
-        });
-
-        setPendingReport({ report, summary });
-        setFilePreview(null);
-        setSelectedFile(null);
-        await loadReports();
-      }
-    } catch (err: unknown) {
-      const code = (err as {code?: string})?.code ?? '';
-      const msg = String((err as {message?: string})?.message ?? '');
-      if (code === 'functions/resource-exhausted' || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('quota')) {
-        setAnalyzeError(t('measurements.quotaError'));
-      } else {
-        setAnalyzeError(t('measurements.analyzeError'));
-      }
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
-  // ── Delete report ─────────────────────────────────────────────────────────
-
-  const handleDeleteReport = async (rep: BodyCompositionReportDoc) => {
-    if (!currentUser || !window.confirm(t('measurements.deleteConfirm'))) return;
-    setDeletingId(rep.id);
-    try {
-      await deleteStoredFile(rep.storage_path);
-      await deleteBodyCompositionReport(currentUser.uid, rep.id);
-      await loadReports();
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  // ── Save tape measurements ────────────────────────────────────────────────
-
-  const handleSave = async () => {
-    if (!currentUser) return;
-    setSaving(true);
-    try {
-      const measurements: Measurements = {};
-      for (const [k, v] of Object.entries(values)) {
-        if (v) (measurements as Record<string, number>)[k] = parseFloat(v);
-      }
-      await upsertDailyLog(currentUser.uid, date, {
-        measurements,
-        body_fat_pct: bodyFat ? parseFloat(bodyFat) : undefined,
-        updated_at: serverTimestamp(),
-        ...(!log ? { date, created_at: serverTimestamp() } : {}),
-      });
-      setSaved(true);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (logLoading) return (
-    <Container sx={{ display: 'flex', justifyContent: 'center', pt: 8 }}>
-      <CircularProgress />
-    </Container>
-  );
-
-  return (
-    <Container maxWidth="sm" sx={{ py: 3 }}>
-      <Stack spacing={3}>
-        <Typography variant="body2" color="text.secondary">
-          {date} — {t('measurements.hint')}
-        </Typography>
-
-        {/* ── Upload new report ── */}
-        <Card variant="outlined" sx={{ bgcolor: 'grey.50' }}>
-          <CardContent>
-            <Stack spacing={2}>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <MonitorWeightIcon color="primary" />
-                <Typography variant="subtitle1" fontWeight={600} sx={{ flex: 1 }}>
-                  {t('measurements.reportTitle')}
-                </Typography>
-              </Stack>
-              <Typography variant="body2" color="text.secondary">
-                {t('measurements.reportHint')}
-              </Typography>
-
-              {filePreview && (
-                filePreview.isPdf ? (
-                  <Stack direction="row" alignItems="center" spacing={1}
-                    sx={{ p: 1.5, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-                    <PictureAsPdfIcon color="error" />
-                    <Typography variant="body2">{t('measurements.pdfReady')}</Typography>
-                  </Stack>
-                ) : (
-                  <Box component="img" src={filePreview.dataUrl} alt="report"
-                    sx={{ width: '100%', maxHeight: 220, objectFit: 'contain', borderRadius: 2, bgcolor: 'white' }} />
-                )
-              )}
-
-              {/* Show just-extracted summary before user scrolls down */}
-              {pendingReport?.summary && (
-                <Alert severity="success" icon={<AutoFixHighIcon />}>
-                  {pendingReport.summary}
-                </Alert>
-              )}
-
-              <Stack direction="row" spacing={1}>
-                <Button variant="outlined" startIcon={<UploadFileIcon />}
-                  onClick={() => fileInputRef.current?.click()} sx={{ flex: 1 }}>
-                  {filePreview ? t('measurements.changeFile') : t('measurements.uploadReport')}
-                </Button>
-                {filePreview && (
-                  <Button variant="contained"
-                    startIcon={analyzing ? <CircularProgress size={16} color="inherit" /> : <AutoFixHighIcon />}
-                    onClick={handleAnalyze} disabled={analyzing} sx={{ flex: 1 }}>
-                    {analyzing ? t('measurements.analyzing') : t('measurements.extractData')}
-                  </Button>
-                )}
-              </Stack>
-              {analyzeError && <Alert severity="warning">{analyzeError}</Alert>}
-            </Stack>
-          </CardContent>
-        </Card>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif,application/pdf,.pdf"
-          style={{ display: 'none' }}
-          onChange={handleFileChange}
-        />
-
-        {/* ── Past reports list ── */}
-        {reportsLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-            <CircularProgress size={24} />
-          </Box>
-        ) : reports.length > 0 && (
-          <Stack spacing={2}>
-            <Typography variant="subtitle1" fontWeight={600}>
-              {t('measurements.reportsHistory')}
-            </Typography>
-            {reports.map((rep) => (
-              <Card key={rep.id} variant="outlined">
-                <CardContent sx={{ pb: rep.ai_summary ? 1 : undefined }}>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    {rep.file_type === 'pdf'
-                      ? <PictureAsPdfIcon color="error" fontSize="small" />
-                      : <MonitorWeightIcon color="primary" fontSize="small" />}
-
-                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                        <Typography variant="body2" fontWeight={600}>
-                          {rep.report_date ?? rep.source_app ?? t('measurements.unknownDate')}
-                        </Typography>
-                        {rep.source_app && rep.report_date && (
-                          <Chip label={rep.source_app} size="small" variant="outlined" />
-                        )}
-                      </Stack>
-                    </Box>
-
-                    <Tooltip title={t('measurements.viewReport')}>
-                      <IconButton size="small" component="a" href={rep.download_url}
-                        target="_blank" rel="noopener noreferrer">
-                        <OpenInNewIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title={t('common.delete')}>
-                      <IconButton size="small" color="error"
-                        onClick={() => handleDeleteReport(rep)}
-                        disabled={deletingId === rep.id}>
-                        {deletingId === rep.id
-                          ? <CircularProgress size={16} />
-                          : <DeleteIcon fontSize="small" />}
-                      </IconButton>
-                    </Tooltip>
-                  </Stack>
-                </CardContent>
-
-                {/* AI Summary */}
-                {rep.ai_summary && (
-                  <Box sx={{ px: 2, pb: 1.5, borderTop: 1, borderColor: 'divider' }}>
-                    <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" sx={{ mb: 0.5, mt: 1 }}>
-                      {t('common.aiSummary')}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                      {rep.ai_summary}
-                    </Typography>
-                  </Box>
-                )}
-
-                {/* Extracted data accordion */}
-                {rep.extracted_data && (
-                  <Accordion disableGutters elevation={0}
-                    sx={{ borderTop: 1, borderColor: 'divider', '&:before': { display: 'none' } }}>
-                    <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 40, px: 2 }}>
-                      <Typography variant="caption" fontWeight={600} color="primary.main">
-                        {t('measurements.viewData')}
-                      </Typography>
-                    </AccordionSummary>
-                    <AccordionDetails sx={{ px: 2, pt: 0, pb: 2 }}>
-                      <ReportDetail data={rep.extracted_data as unknown as BodyCompositionReport} />
-                    </AccordionDetails>
-                  </Accordion>
-                )}
-              </Card>
-            ))}
-          </Stack>
-        )}
-
-        <Divider />
-
-        {/* ── Tape Measurements ── */}
-        <Typography variant="subtitle1" fontWeight={600}>{t('measurements.tapeTitle')}</Typography>
-        <Typography variant="body2" color="text.secondary">{t('measurements.tapeHint')}</Typography>
-
-        <Grid container spacing={2}>
-          {TAPE_FIELDS.map(({ key, label }) => (
-            <Grid key={key} size={{ xs: 6 }}>
-              <TextField
-                label={`${t(label)} (cm)`}
-                type="number"
-                value={values[key] ?? ''}
-                onChange={(e) => setValues((p) => ({ ...p, [key]: e.target.value }))}
-                fullWidth
-                inputProps={{ min: 0, step: 0.1 }}
-              />
-            </Grid>
-          ))}
-          <Grid size={{ xs: 6 }}>
-            <TextField
-              label={t('measurements.bodyFatManual')}
-              type="number"
-              value={bodyFat}
-              onChange={(e) => setBodyFat(e.target.value)}
-              fullWidth
-              inputProps={{ min: 0, max: 80, step: 0.1 }}
-            />
-          </Grid>
-        </Grid>
-
-        <Button variant="contained" size="large"
-          startIcon={saving ? <CircularProgress size={18} /> : <SaveIcon />}
-          onClick={handleSave} disabled={saving}>
-          {t('measurements.save')}
-        </Button>
-      </Stack>
-
-      <Snackbar open={saved} autoHideDuration={3000} onClose={() => setSaved(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
-        <Alert severity="success" onClose={() => setSaved(false)}>{t('measurements.saved')}</Alert>
-      </Snackbar>
-    </Container>
-  );
+  return <Container maxWidth="md" sx={{ py: 3 }}><Stack spacing={3}>
+    <Button variant="text" onClick={() => setLegacy(value => !value)} sx={{ alignSelf: 'flex-start' }}>{t(legacy ? 'measurementWorkspace.backToWorkspace' : 'measurementWorkspace.browseLegacy')}</Button>
+    {legacy ? <MeasurementHistory uid={uid} reports={reports} reportsLoading={loading} reportsError={error} refreshKey={refresh}
+      renderReport={report => <ReportDetail data={report} />} onAdd={() => setLegacy(false)} onRetryReports={loadReports}
+      onDelete={remove} deletingId={deleting} /> : <MeasurementWorkspace initialDate={date} />}
+  </Stack></Container>;
 }

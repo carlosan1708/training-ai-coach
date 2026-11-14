@@ -1,6 +1,13 @@
 {
   "indexes": [
     {
+      "collectionGroup": "logs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "__name__", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "workout_sessions",
       "queryScope": "COLLECTION",
       "fields": [
@@ -9,5 +16,8 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    { "collectionGroup": "usage_events", "fieldPath": "expires_at", "ttl": true, "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }] },
+    { "collectionGroup": "usage_user_days", "fieldPath": "expires_at", "ttl": true, "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }] }
+  ]
 }

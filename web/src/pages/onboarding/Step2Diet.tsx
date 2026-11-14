@@ -26,6 +26,7 @@ export default function Step2Diet({ draft, onUpdate }: Props) {
       <FormControl fullWidth>
         <InputLabel>{t('onboarding.diet.style')}</InputLabel>
         <Select
+          inputProps={{ 'aria-label': t('onboarding.diet.style') }}
           value={draft.dietary_style ?? 'omnivore'}
           label={t('onboarding.diet.style')}
           onChange={(e) =>
@@ -43,13 +44,10 @@ export default function Step2Diet({ draft, onUpdate }: Props) {
       <TextField
         label={t('onboarding.diet.intolerances')}
         helperText={t('onboarding.diet.intolerancesHint')}
-        value={(draft.intolerances ?? []).join(', ')}
+        value={(draft.intolerances ?? []).join(',')}
         onChange={(e) =>
           onUpdate({
-            intolerances: e.target.value
-              .split(',')
-              .map((s) => s.trim())
-              .filter(Boolean),
+            intolerances: e.target.value.split(','),
           })
         }
         fullWidth
@@ -58,13 +56,10 @@ export default function Step2Diet({ draft, onUpdate }: Props) {
       <TextField
         label={t('onboarding.diet.dislikedFoods')}
         helperText={t('onboarding.diet.dislikedFoodsHint')}
-        value={(draft.disliked_foods ?? []).join(', ')}
+        value={(draft.disliked_foods ?? []).join(',')}
         onChange={(e) =>
           onUpdate({
-            disliked_foods: e.target.value
-              .split(',')
-              .map((s) => s.trim())
-              .filter(Boolean),
+            disliked_foods: e.target.value.split(','),
           })
         }
         fullWidth
@@ -73,13 +68,10 @@ export default function Step2Diet({ draft, onUpdate }: Props) {
       <TextField
         label={t('onboarding.diet.cuisines')}
         helperText={t('onboarding.diet.cuisinesHint')}
-        value={(draft.preferred_cuisines ?? []).join(', ')}
+        value={(draft.preferred_cuisines ?? []).join(',')}
         onChange={(e) =>
           onUpdate({
-            preferred_cuisines: e.target.value
-              .split(',')
-              .map((s) => s.trim())
-              .filter(Boolean),
+            preferred_cuisines: e.target.value.split(','),
           })
         }
         fullWidth
@@ -90,6 +82,7 @@ export default function Step2Diet({ draft, onUpdate }: Props) {
           {t('onboarding.diet.mealsPerDay')}: {draft.meals_per_day ?? 3}
         </Typography>
         <Slider
+          aria-label={t('onboarding.diet.mealsPerDay')}
           min={2}
           max={6}
           step={1}

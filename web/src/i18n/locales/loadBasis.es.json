@@ -1,0 +1,29 @@
+{
+  "loadBasis": {
+    "label": "Cómo registrar el peso",
+    "per_dumbbell": "Peso por mancuerna",
+    "total": "Peso total",
+    "machine_display": "Peso indicado por la máquina",
+    "per_side": "Peso por lado",
+    "unknown": "Criterio del peso anterior sin confirmar",
+    "review": "Revisa el peso con este criterio. Las cargas anteriores no se han reutilizado automáticamente.",
+    "help": {
+      "per_dumbbell": "Anota el peso de UNA mancuerna. Dos mancuernas de 15 lb: anota 15 lb. En ejercicios unilaterales, registra repeticiones por brazo.",
+      "total": "Dos mancuernas: suma ambos pesos. Dos mancuernas de 15 lb: anota 30 lb. Barra: barra más discos de ambos lados. Máquina de discos: suma los discos añadidos; no adivines el peso de la máquina vacía.",
+      "machine_display": "Anota la lectura de la torre o pantalla. No la multipliques por las asas ni por los lados.",
+      "per_side": "Anota la carga de UN lado. Mantén este criterio para este ejercicio.",
+      "unknown": "Los registros antiguos no especificaban por mancuerna, por lado o total. Sus números se conservan."
+    },
+    "changeHint": "Cambiar el criterio no convierte cargas guardadas. Introduce de nuevo el peso de trabajo o revísalo en la próxima sesión.",
+    "mixed": "Los criterios de peso difieren o no están confirmados. Compara cargas solo con el mismo criterio confirmado; el volumen registrado usa peso anotado × repeticiones.",
+    "recordedChoiceHint": "Esta opción indica qué significan los pesos de este ejercicio en este entrenamiento. No convierte cargas ni cambia otros entrenamientos o la rutina.",
+    "activeChoiceHint": "Confirma qué significan estos pesos, sin convertirlos. La opción y los pesos ingresados se guardan para próximos entrenamientos. Al descartar este entrenamiento se restauran los valores anteriores.",
+    "clearChoice": "Dejar sin confirmar",
+    "recordedReference": "Referencia del peso registrado",
+    "recordedSet": "Serie {{number}}: {{weight}}",
+    "recordedConvention": "Criterio registrado: {{convention}}",
+    "recordedDate": "Registrado el {{date}}",
+    "referenceOnly": "Solo como referencia. Estos pesos no son los valores actuales de un nuevo entrenamiento.",
+    "useRecordedWeights": "Usar los pesos registrados con este criterio"
+  }
+}
