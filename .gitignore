@@ -26,6 +26,17 @@ application_default_credentials.json
 *-debug.log
 *-debug.*.log
 
+# Terraform local state, plans and private variables
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan*
+crash.log
+infra/azure/terraform.tfvars
+infra/azure/*.auto.tfvars
+infra/azure/backend.local.hcl
+
 # JavaScript dependencies, builds and browser test artifacts
 node_modules/
 /web/dist/
